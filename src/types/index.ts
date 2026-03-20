@@ -1,5 +1,6 @@
 export type RiskLevel = 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
 export type ShootdownTier = 'LOW' | 'MED' | 'HIGH';
+export type AssessmentMode = 'FORM' | 'VOICE';
 
 export type MarchData = {
   hemorrhage: 'NO' | 'APPLIED' | 'UNCONTROLLED' | null;

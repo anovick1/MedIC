@@ -24,6 +24,7 @@ export function RecentPatientsScreen() {
   return (
     <View style={sharedStyles.screen}>
       <ScrollView contentContainerStyle={sharedStyles.scrollContent}>
+        <View style={sharedStyles.contentGap}>
         <Text style={typography.screenTitle}>RECENT PATIENTS</Text>
 
         {recentPatients.length === 0 ? (
@@ -42,6 +43,7 @@ export function RecentPatientsScreen() {
             </SectionCard>
           ))
         )}
+        </View>
       </ScrollView>
     </View>
   );

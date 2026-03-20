@@ -6,7 +6,6 @@ export const colors = {
   text:       '#d4e0f0',
   textDim:    '#6a8099',
   textMono:   '#8ab4c4',
-  white:      '#ffffff',
   accent:     '#00c4ff',
   accentDim:  '#1a4a5a',
   green:      '#00e676',
@@ -17,6 +16,7 @@ export const colors = {
   orangeDim:  '#3a1800',
   red:        '#ff1744',
   redDim:     '#3a0010',
+  white:      '#ffffff',
 } as const;
 
 export type RiskLevel = 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';

@@ -76,7 +76,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
-    minWidth: 200,
   },
   disabled: {
     opacity: 0.5,

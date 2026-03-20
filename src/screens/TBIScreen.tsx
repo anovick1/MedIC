@@ -37,6 +37,7 @@ export function TBIScreen() {
   return (
     <View style={sharedStyles.screen}>
       <ScrollView contentContainerStyle={sharedStyles.scrollContent}>
+        <View style={sharedStyles.contentGap}>
         <ProgressBar total={4} current={2} />
 
         <SectionCard title="GLASGOW COMA SCALE">
@@ -175,6 +176,7 @@ export function TBIScreen() {
             onPress={handleCalculateRisk}
           />
         </View>
+        </View>
       </ScrollView>
     </View>
   );
@@ -182,7 +184,6 @@ export function TBIScreen() {
 
 const styles = StyleSheet.create({
   gcsRow: {
-    flexDirection: 'row',
     gap: spacing.sm,
   },
   gcsTotal: {

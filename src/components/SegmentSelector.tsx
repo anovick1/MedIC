@@ -37,11 +37,19 @@ export function SegmentSelector({ options, selected, onSelect, columns, multiSel
             onPress={() => onSelect(option.value)}
             activeOpacity={0.75}
           >
-            <Text style={[typography.segmentLabel, optionSelected ? styles.selectedText : styles.unselectedText]}>
+            <Text
+              style={[typography.segmentLabel, optionSelected ? styles.selectedText : styles.unselectedText]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
               {option.label}
             </Text>
             {option.sublabel && (
-              <Text style={[typography.segmentSub, optionSelected ? styles.selectedText : styles.unselectedText]}>
+              <Text
+                style={[typography.segmentSub, optionSelected ? styles.selectedText : styles.unselectedText]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
                 {option.sublabel}
               </Text>
             )}

@@ -10,6 +10,9 @@ export const sharedStyles = StyleSheet.create({
   },
   scrollContent: {
     padding: spacing.lg,
+    paddingBottom: spacing.xxl,
+  },
+  contentGap: {
     gap: spacing.md,
   },
   card: {

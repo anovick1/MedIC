@@ -27,6 +27,7 @@ export function ConfirmScreen() {
   return (
     <View style={sharedStyles.screen}>
       <ScrollView contentContainerStyle={sharedStyles.scrollContent}>
+        <View style={sharedStyles.contentGap}>
         <View style={styles.checkmarkContainer}>
           <Text style={styles.checkmark}>✓</Text>
           <Text style={styles.successText}>SQUIRT SENT</Text>
@@ -59,6 +60,7 @@ export function ConfirmScreen() {
               navigation.navigate('March');
             }}
           />
+        </View>
         </View>
       </ScrollView>
     </View>

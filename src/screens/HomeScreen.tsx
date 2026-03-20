@@ -1,25 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TextInput } from 'react-native';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { usePatientStore } from '../store/usePatientStore';
 import { BigButton } from '../components/BigButton';
 import { SectionCard } from '../components/SectionCard';
 import { colors } from '../theme/colors';
-import { spacing } from '../theme/spacing';
+import { spacing, sizing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import { sharedStyles } from '../theme/styles';
 
 type RootStackParamList = {
   Home: undefined;
   March: undefined;
+  VoiceAssessment: undefined;
   RecentPatients: undefined;
-  DroneStandalone: undefined;
 };
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
 export function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
+  const { assessmentMode, setAssessmentMode } = usePatientStore();
   const [utcTime, setUtcTime] = useState(new Date().toISOString());
 
   useEffect(() => {
@@ -29,80 +31,92 @@ export function HomeScreen() {
     return () => clearInterval(interval);
   }, []);
 
+  const handleNewPatient = () => {
+    if (assessmentMode === 'VOICE') {
+      navigation.navigate('VoiceAssessment');
+    } else {
+      navigation.navigate('March');
+    }
+  };
+
   return (
     <View style={sharedStyles.screen}>
       <ScrollView contentContainerStyle={sharedStyles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={typography.screenTitle}>MedIC</Text>
-          <Text style={styles.subtitle}>DHA-33: Heads Up Medics</Text>
-        </View>
+        <View style={sharedStyles.contentGap}>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusText}>● OFFLINE</Text>
+            <Text style={styles.statusText}>UTC: {utcTime.substring(11, 19)}</Text>
+          </View>
 
-        <View style={styles.statusRow}>
-          <Text style={styles.statusText}>● OFFLINE</Text>
-          <Text style={styles.statusText}>UTC: {utcTime.substring(11, 19)}</Text>
-        </View>
+          <SectionCard title="HOW TO ASSESS">
+            <View style={styles.modeRow}>
+              <View style={styles.modeButtonWrapper}>
+                <BigButton
+                  label="📋 FORM"
+                  variant={assessmentMode === 'FORM' ? 'primary' : 'outline'}
+                  size="small"
+                  onPress={() => setAssessmentMode('FORM')}
+                />
+              </View>
+              <View style={styles.modeButtonWrapper}>
+                <BigButton
+                  label="🎤 VOICE"
+                  variant={assessmentMode === 'VOICE' ? 'primary' : 'outline'}
+                  size="small"
+                  onPress={() => setAssessmentMode('VOICE')}
+                />
+              </View>
+            </View>
+            <Text style={styles.modeHint}>
+              {assessmentMode === 'FORM'
+                ? 'Fill out the assessment yourself'
+                : 'AI guides you through it hands-free'}
+            </Text>
+          </SectionCard>
 
-        <BigButton
-          label="NEW PATIENT"
-          sublabel="Start MARCH assessment"
-          variant="go"
-          onPress={() => navigation.navigate('March')}
-        />
-
-        <BigButton
-          label="RECENT PATIENTS"
-          variant="neutral"
-          onPress={() => navigation.navigate('RecentPatients')}
-        />
-
-        <BigButton
-          label="DRONE CALCULATOR"
-          variant="neutral"
-          onPress={() => navigation.navigate('DroneStandalone')}
-        />
-
-        <SectionCard title="AI BUDDY">
           <BigButton
-            label="VOICE MODE"
-            variant="outline"
-            size="small"
-            onPress={() => {}}
-            disabled={true}
+            label="NEW PATIENT"
+            sublabel="Start assessment"
+            variant="go"
+            onPress={handleNewPatient}
           />
+
           <BigButton
-            label="TEXT MODE"
-            variant="outline"
+            label="RECENT PATIENTS"
+            variant="neutral"
             size="small"
-            onPress={() => {}}
-            disabled={true}
+            onPress={() => navigation.navigate('RecentPatients')}
           />
-        </SectionCard>
+        </View>
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    alignItems: 'center',
-    marginBottom: spacing.xl,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textDim,
-    marginTop: spacing.xs,
-  },
   statusRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg,
     padding: spacing.md,
     backgroundColor: colors.surface,
-    borderRadius: 8,
+    borderRadius: sizing.borderRadius,
   },
   statusText: {
     fontSize: 12,
     color: colors.textDim,
     fontFamily: 'monospace',
+  },
+  modeRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  modeButtonWrapper: {
+    flex: 1,
+  },
+  modeHint: {
+    ...typography.label,
+    color: colors.textDim,
+    textAlign: 'center',
+    marginTop: spacing.md,
   },
 });

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { MarchData, TBIData, QwenRiskResult, PatientRecord } from '../types';
+import { MarchData, TBIData, QwenRiskResult, PatientRecord, AssessmentMode } from '../types';
 
 const defaultTBI: TBIData = {
   gcsEye: 4, gcsVerbal: 5, gcsMotor: 6,
@@ -26,6 +26,7 @@ interface PatientStore {
   risk: QwenRiskResult;
   dronesNeeded: number;
   shootdownTier: 'LOW' | 'MED' | 'HIGH';
+  assessmentMode: AssessmentMode;
   recentPatients: PatientRecord[];
 
   setPatientId: (id: string) => void;
@@ -36,6 +37,7 @@ interface PatientStore {
   setRisk: (result: QwenRiskResult) => void;
   setDrones: (n: number) => void;
   setShootdown: (tier: 'LOW' | 'MED' | 'HIGH') => void;
+  setAssessmentMode: (mode: AssessmentMode) => void;
   reset: () => void;
 }
 
@@ -47,6 +49,7 @@ export const usePatientStore = create<PatientStore>((set) => ({
   risk: defaultRisk,
   dronesNeeded: 1,
   shootdownTier: 'MED',
+  assessmentMode: 'FORM',
   recentPatients: [],
 
   setPatientId: (id) => set({ patientId: id }),
@@ -61,5 +64,6 @@ export const usePatientStore = create<PatientStore>((set) => ({
   setRisk: (result) => set({ risk: result }),
   setDrones: (n) => set({ dronesNeeded: n }),
   setShootdown: (tier) => set({ shootdownTier: tier }),
-  reset: () => set({ patientId: '', missionId: '', march: defaultMarch, tbi: defaultTBI, risk: defaultRisk, dronesNeeded: 1 }),
+  setAssessmentMode: (mode) => set({ assessmentMode: mode }),
+  reset: () => set({ patientId: '', missionId: '', march: defaultMarch, tbi: defaultTBI, risk: defaultRisk, dronesNeeded: 1, assessmentMode: 'FORM' }),
 }));

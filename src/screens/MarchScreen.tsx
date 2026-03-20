@@ -28,6 +28,7 @@ export function MarchScreen() {
   return (
     <View style={sharedStyles.screen}>
       <ScrollView contentContainerStyle={sharedStyles.scrollContent}>
+        <View style={sharedStyles.contentGap}>
         <ProgressBar total={4} current={1} />
 
         <AlertBanner
@@ -137,6 +138,7 @@ export function MarchScreen() {
             variant="primary"
             onPress={() => navigation.navigate('TBI')}
           />
+        </View>
         </View>
       </ScrollView>
     </View>

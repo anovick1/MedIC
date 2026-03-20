@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet, Text, ActivityIndicator } from 'react-native';
+import { View, ScrollView, StyleSheet, Text, ActivityIndicator, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { usePatientStore } from '../store/usePatientStore';
@@ -49,6 +49,7 @@ export function ReviewScreen() {
   return (
     <View style={sharedStyles.screen}>
       <ScrollView contentContainerStyle={sharedStyles.scrollContent}>
+        <View style={sharedStyles.contentGap}>
         <ProgressBar total={4} current={3} />
 
         {risk.loading ? (
@@ -74,22 +75,22 @@ export function ReviewScreen() {
 
             <View style={styles.tabContainer}>
               <View style={styles.tabs}>
-                <View
+                <Pressable
                   style={[styles.tab, activeTab === 'clinical' && styles.tabActive]}
-                  onTouchEnd={() => setActiveTab('clinical')}
+                  onPress={() => setActiveTab('clinical')}
                 >
                   <Text style={[styles.tabText, activeTab === 'clinical' && styles.tabTextActive]}>
                     CLINICAL
                   </Text>
-                </View>
-                <View
+                </Pressable>
+                <Pressable
                   style={[styles.tab, activeTab === 'march' && styles.tabActive]}
-                  onTouchEnd={() => setActiveTab('march')}
+                  onPress={() => setActiveTab('march')}
                 >
                   <Text style={[styles.tabText, activeTab === 'march' && styles.tabTextActive]}>
                     MARCH
                   </Text>
-                </View>
+                </Pressable>
               </View>
 
               <SectionCard title={activeTab === 'clinical' ? 'TBI ASSESSMENT' : 'MARCH ASSESSMENT'}>
@@ -144,19 +145,24 @@ export function ReviewScreen() {
             </SectionCard>
 
             <View style={styles.buttonRow}>
-              <BigButton
-                label="EDIT"
-                variant="neutral"
-                onPress={() => navigation.navigate('TBI')}
-              />
-              <BigButton
-                label="SQUIRT"
-                variant="go"
-                onPress={() => navigation.navigate('Confirm')}
-              />
+              <View style={styles.buttonWrapper}>
+                <BigButton
+                  label="EDIT"
+                  variant="neutral"
+                  onPress={() => navigation.navigate('TBI')}
+                />
+              </View>
+              <View style={styles.buttonWrapper}>
+                <BigButton
+                  label="SQUIRT"
+                  variant="go"
+                  onPress={() => navigation.navigate('Confirm')}
+                />
+              </View>
             </View>
           </>
         )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -205,5 +211,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
     marginTop: spacing.lg,
+  },
+  buttonWrapper: {
+    flex: 1,
   },
 });
