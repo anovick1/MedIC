@@ -7,7 +7,7 @@ import { typography } from '../theme/typography';
 type Props = {
   label: string;
   sublabel?: string;
-  variant: 'primary' | 'go' | 'warn' | 'danger' | 'neutral' | 'outline';
+  variant: 'primary' | 'go' | 'warn' | 'danger' | 'neutral' | 'outline' | 'tan';
   onPress: () => void;
   disabled?: boolean;
   size?: 'large' | 'small';
@@ -67,6 +67,10 @@ const stylesByVariant = {
   outline: {
     button: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.accent },
     text: { color: colors.accent },
+  },
+  tan: {
+    button: { backgroundColor: colors.yellow },
+    text: { color: colors.bg },
   },
 };
 

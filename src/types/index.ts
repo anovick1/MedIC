@@ -1,43 +1,42 @@
 export type RiskLevel = 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
-export type ShootdownTier = 'LOW' | 'MED' | 'HIGH';
 export type AssessmentMode = 'FORM' | 'VOICE';
 
 export type MarchData = {
-  hemorrhage: 'NO' | 'APPLIED' | 'UNCONTROLLED' | null;
-  airway: 'PATENT' | 'MANAGED' | 'COMPROMISED' | null;
-  respiration: 'NORMAL' | 'NEEDLE-D' | 'CHEST-SEAL' | 'COMPROMISED' | null;
-  systolicBP: number;
-  hypothermia: 'NO' | 'MILD' | 'SEVERE' | null;
-  otherInjuries: 'NONE' | 'SPINAL' | 'BURNS' | 'MULTIPLE' | null;
+  hemorrhage: 'CONTROLLED' | 'UNCONTROLLED' | null;
+  airway: 'PATENT' | 'COMPROMISED' | null;
+  respiration: 'NORMAL' | 'COMPROMISED' | null;
+  circulation: 'STABLE' | 'UNSTABLE' | null;
+  hypothermia: 'NONE' | 'PRESENT' | null;
 };
 
-export type TBIData = {
-  gcsEye: number;
-  gcsVerbal: number;
-  gcsMotor: number;
-  pupils: 'BOTH-REACTIVE' | 'ONE-SLUGGISH' | 'ONE-FIXED' | 'BOTH-FIXED' | null;
-  npi: 'NA' | 'NORMAL' | 'ABNORMAL' | 'CRITICAL' | null;
-  moi: 'BLAST' | 'GSW' | 'BLUNT' | 'FALL' | 'CRUSH' | 'UNKNOWN' | null;
-  timeSinceInjury: 'LT15' | '15-60' | '1-4H' | 'GT4H' | null;
-  neuroProgression: 'STABLE' | 'IMPROVING' | 'DECLINING' | null;
-  motorAsymmetry: 'NONE' | 'MILD' | 'HEMIPLEGIA' | null;
-  symptoms: Set<'LOC' | 'VOMIT' | 'SEIZURE' | 'POSTURING' | 'HEADACHE'>;
+export type VitalsData = {
+  bpSystolic: number | null;
+  bpDiastolic: number | null;
+  heartRate: number | null;
+  oxygenSaturation: number | null;
+  temperature: number | null;
+};
+
+export type NeuroData = {
+  gcs: number | null;
+  consciousness: 'ALERT' | 'VOICE' | 'PAIN' | 'UNRESPONSIVE' | null;
+  injuryLocation: Set<'FRONT' | 'BACK' | 'LEFT' | 'RIGHT' | 'TOP'>;
+  notes: string;
 };
 
 export type QwenRiskResult = {
   level: RiskLevel;
-  probability: string;      // e.g. "~65% risk of severe injury within 2-4 hours"
+  probability: string;
   recommendations: string[];
   bpAlert: string | null;
   loading: boolean;
   error: string | null;
 };
 
-export type DroneItem = {
+export type PayloadItem = {
+  id: string;
   name: string;
-  weightLbs: number;
-  priority: 'CRITICAL' | 'STANDARD';
-  drone: 'A' | 'B';
+  included: boolean;
 };
 
 export type PatientRecord = {
@@ -45,9 +44,9 @@ export type PatientRecord = {
   missionId: string;
   timestamp: number;
   march: MarchData;
-  tbi: TBIData;
+  vitals: VitalsData;
+  neuro: NeuroData;
   risk: QwenRiskResult;
-  dronesNeeded: number;
   squirtPayload: string;
   status: 'DRAFT' | 'SENT';
 };

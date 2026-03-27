@@ -16,7 +16,7 @@ export function DataRow({ label, value, valueColor, isLast }: Props) {
     <View style={styles.container}>
       <View style={styles.row}>
         <Text style={typography.dataKey}>{label}</Text>
-        <Text style={[typography.dataVal, valueColor && { color: valueColor }]}>
+        <Text style={[typography.dataVal, valueColor ? { color: valueColor } : undefined]}>
           {value}
         </Text>
       </View>

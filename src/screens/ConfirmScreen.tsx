@@ -1,91 +1,96 @@
-import React from 'react';
-import { View, ScrollView, StyleSheet, Text } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { usePatientStore } from '../store/usePatientStore';
-import { AlertBanner } from '../components/AlertBanner';
-import { SectionCard } from '../components/SectionCard';
-import { DataRow } from '../components/DataRow';
+import { deleteDraft } from '../storage/storage';
 import { BigButton } from '../components/BigButton';
+import { DataRow } from '../components/DataRow';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
-import { sharedStyles } from '../theme/styles';
 
-type RootStackParamList = {
-  Confirm: undefined;
-  Home: undefined;
-  March: undefined;
-};
-
-type ConfirmScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Confirm'>;
+type RootStackParamList = { Home: undefined; InteractiveCare: undefined; Confirm: undefined };
+type NavProp = StackNavigationProp<RootStackParamList, 'Confirm'>;
 
 export function ConfirmScreen() {
-  const navigation = useNavigation<ConfirmScreenNavigationProp>();
-  const { patientId, missionId, risk, dronesNeeded } = usePatientStore();
+  const navigation = useNavigation<NavProp>();
+  const { patientId, missionId, currentDraftId, saveRequestToStorage, reset } = usePatientStore();
+  const [utcTime, setUtcTime] = useState(() => new Date().toISOString().substring(11, 19));
+
+  useEffect(() => { saveRequestToStorage(); }, []);
+  useEffect(() => {
+    const id = setInterval(() => setUtcTime(new Date().toISOString().substring(11, 19)), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const handleReturnHome = async () => {
+    if (currentDraftId) await deleteDraft(currentDraftId);
+    reset();
+    navigation.navigate('Home');
+  };
+  const handleContinueCare = async () => {
+    if (currentDraftId) await deleteDraft(currentDraftId);
+    navigation.navigate('InteractiveCare');
+  };
 
   return (
-    <View style={sharedStyles.screen}>
-      <ScrollView contentContainerStyle={sharedStyles.scrollContent}>
-        <View style={sharedStyles.contentGap}>
-        <View style={styles.checkmarkContainer}>
-          <Text style={styles.checkmark}>✓</Text>
-          <Text style={styles.successText}>SQUIRT SENT</Text>
-        </View>
+    <View style={styles.container}>
+      <View style={styles.body}>
+        <Text style={styles.checkmark}>✓</Text>
+        <Text style={styles.sentTitle}>SQUIRT SENT</Text>
 
-        <SectionCard title="TRANSMISSION DETAILS">
-          <DataRow label="Mission ID" value={missionId || 'Not set'} />
-          <DataRow label="Patient ID" value={patientId || 'Not set'} />
-          <DataRow label="Risk Level" value={risk.level} />
-          <DataRow label="Drones Needed" value={String(dronesNeeded)} />
-          <DataRow label="Time" value={new Date().toISOString().substring(11, 19)} isLast={true} />
-        </SectionCard>
-
-        <AlertBanner
-          type="info"
-          message="Queued for next comms window"
-        />
-
-        <View style={styles.buttonRow}>
-          <BigButton
-            label="HOME"
-            variant="neutral"
-            onPress={() => navigation.navigate('Home')}
-          />
-          <BigButton
-            label="NEW PATIENT"
-            variant="go"
-            onPress={() => {
-              usePatientStore.getState().reset();
-              navigation.navigate('March');
-            }}
-          />
+        <View style={styles.dataBlock}>
+          <DataRow label="Patient" value={patientId || '—'} />
+          <DataRow label="Mission ID" value={missionId || '—'} />
+          <DataRow label="Time" value={utcTime} isLast />
         </View>
+      </View>
+
+      <View style={styles.footer}>
+        <View style={styles.btnWrap}>
+          <BigButton variant="neutral" label="RETURN HOME" size="small" onPress={handleReturnHome} />
         </View>
-      </ScrollView>
+        <View style={styles.btnWrap}>
+          <BigButton variant="go" label="CONTINUE CARE" size="small" onPress={handleContinueCare} />
+        </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  checkmarkContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  body: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    paddingHorizontal: spacing.xl,
+    gap: spacing.xl,
   },
   checkmark: {
-    fontSize: 64,
+    fontSize: 100,
     color: colors.green,
-    marginBottom: spacing.md,
   },
-  successText: {
-    fontSize: 24,
-    fontWeight: '700',
+  sentTitle: {
+    ...typography.screenTitle,
     color: colors.green,
-    textTransform: 'uppercase',
+    fontSize: 28,
+    textAlign: 'center',
   },
-  buttonRow: {
+  dataBlock: {
+    alignSelf: 'stretch',
+  },
+  footer: {
     flexDirection: 'row',
     gap: spacing.md,
-    marginTop: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+  },
+  btnWrap: {
+    flex: 1,
   },
 });

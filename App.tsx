@@ -5,19 +5,29 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { colors } from './src/theme/colors';
 import { sharedStyles } from './src/theme/styles';
 import { HomeScreen } from './src/screens/HomeScreen';
-import { MarchScreen } from './src/screens/MarchScreen';
-import { TBIScreen } from './src/screens/TBIScreen';
-import { ReviewScreen } from './src/screens/ReviewScreen';
+import { AssessmentModeScreen } from './src/screens/AssessmentModeScreen';
+import { PatientInfoScreen } from './src/screens/PatientInfoScreen';
+import { MARCHScreen } from './src/screens/MARCHScreen';
+import { TriageFormScreen } from './src/screens/TriageFormScreen';
+import { ReviewDataScreen } from './src/screens/ReviewDataScreen';
+import { ReviewSendScreen } from './src/screens/ReviewSendScreen';
 import { ConfirmScreen } from './src/screens/ConfirmScreen';
-import { RecentPatientsScreen } from './src/screens/RecentPatientsScreen';
+import { InteractiveCareScreen } from './src/screens/InteractiveCareScreen';
+import { DraftsScreen } from './src/screens/DraftsScreen';
+import { RecentRequestsScreen } from './src/screens/RecentRequestsScreen';
 import { VoiceAssessmentScreen } from './src/screens/VoiceAssessmentScreen';
 
 export type RootStackParamList = {
   Home: undefined;
-  March: undefined;
-  TBI: undefined;
-  Review: undefined;
+  AssessmentMode: undefined;
+  PatientInfo: undefined;
+  MARCH: undefined;
+  TriageForm: { page: number };
+  ReviewData: undefined;
+  ReviewSend: undefined;
   Confirm: undefined;
+  InteractiveCare: undefined;
+  Drafts: undefined;
   RecentPatients: undefined;
   VoiceAssessment: undefined;
 };
@@ -27,34 +37,39 @@ const Stack = createStackNavigator<RootStackParamList>();
 function App(): React.JSX.Element {
   return (
     <GestureHandlerRootView style={sharedStyles.screen}>
-    <NavigationContainer
-      theme={{
-        dark: true,
-        colors: {
-          primary: colors.accent,
-          background: colors.bg,
-          card: colors.surface,
-          text: colors.text,
-          border: colors.border,
-          notification: colors.accent,
-        },
-      }}
-    >
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-          cardStyle: { backgroundColor: colors.bg },
+      <NavigationContainer
+        theme={{
+          dark: true,
+          colors: {
+            primary: colors.accent,
+            background: colors.bg,
+            card: colors.surface,
+            text: colors.text,
+            border: colors.border,
+            notification: colors.accent,
+          },
         }}
       >
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="March" component={MarchScreen} />
-        <Stack.Screen name="TBI" component={TBIScreen} />
-        <Stack.Screen name="Review" component={ReviewScreen} />
-        <Stack.Screen name="Confirm" component={ConfirmScreen} />
-        <Stack.Screen name="RecentPatients" component={RecentPatientsScreen} />
-        <Stack.Screen name="VoiceAssessment" component={VoiceAssessmentScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+            cardStyle: { backgroundColor: colors.bg },
+          }}
+        >
+          <Stack.Screen name="Home" component={HomeScreen} />
+          <Stack.Screen name="AssessmentMode" component={AssessmentModeScreen} />
+          <Stack.Screen name="PatientInfo" component={PatientInfoScreen} />
+          <Stack.Screen name="MARCH" component={MARCHScreen} />
+          <Stack.Screen name="TriageForm" component={TriageFormScreen} />
+          <Stack.Screen name="ReviewData" component={ReviewDataScreen} />
+          <Stack.Screen name="ReviewSend" component={ReviewSendScreen} />
+          <Stack.Screen name="Confirm" component={ConfirmScreen} />
+          <Stack.Screen name="InteractiveCare" component={InteractiveCareScreen} />
+          <Stack.Screen name="Drafts" component={DraftsScreen} />
+          <Stack.Screen name="RecentPatients" component={RecentRequestsScreen} />
+          <Stack.Screen name="VoiceAssessment" component={VoiceAssessmentScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
     </GestureHandlerRootView>
   );
 }
