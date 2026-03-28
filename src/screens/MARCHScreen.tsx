@@ -57,10 +57,6 @@ export function MARCHScreen() {
         <Text style={styles.title}>MARCH CHECK</Text>
         <Text style={styles.subtitle}>Confirm life threats before proceeding</Text>
 
-        {showCritical && (
-          <AlertBanner type="critical" message="Life threat detected — address before proceeding. Qwen will prioritize this in recommendations." />
-        )}
-
         <SectionCard title="M — MASSIVE HEMORRHAGE">
           <MarchOption goodLabel="CONTROLLED" badLabel="UNCONTROLLED" selected={march.hemorrhage} onSelect={(v) => setMarch('hemorrhage', v)} />
         </SectionCard>
@@ -142,7 +138,7 @@ const styles = StyleSheet.create({
   },
   optionGreenActive: {
     backgroundColor: colors.green,
-    borderWidth: 2,
+    borderWidth: 4,
     borderColor: colors.white,
   },
   optionGreenInactive: {
@@ -150,7 +146,7 @@ const styles = StyleSheet.create({
   },
   optionRedActive: {
     backgroundColor: colors.red,
-    borderWidth: 2,
+    borderWidth: 4,
     borderColor: colors.white,
   },
   optionRedInactive: {

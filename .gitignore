@@ -57,3 +57,8 @@ yarn-error.log
 
 # Temporary files created by Metro to check the health of the file watcher
 .metro-health-check*
+
+# AI model files (too large for git — push to device manually, see README)
+models/
+*.gguf
+*.pte

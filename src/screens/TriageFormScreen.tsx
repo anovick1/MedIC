@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, ScrollView, Text, TextInput, TouchableOpacity, StyleSheet,
+  View, ScrollView, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -92,6 +92,8 @@ export function TriageFormScreen() {
   const route = useRoute<RoutePropType>();
   const [currentPage, setCurrentPage] = useState(route.params?.page ?? 1);
   const [showDraftBanner, setShowDraftBanner] = useState(false);
+  const [tempText, setTempText] = useState('');
+  const [isAssessing, setIsAssessing] = useState(false);
 
   const {
     patientId, missionId, vitals, neuro, march, shootdownRisk, risk,
@@ -120,6 +122,7 @@ export function TriageFormScreen() {
       setCurrentPage(currentPage + 1);
       return;
     }
+    setIsAssessing(true);
     setRisk({ ...risk, loading: true, error: null });
     try {
       const result = await assessRisk(vitals, neuro, march, shootdownRisk);
@@ -128,6 +131,8 @@ export function TriageFormScreen() {
       navigation.navigate('ReviewData');
     } catch (err: any) {
       setRisk({ ...risk, loading: false, error: err?.message ?? 'Assessment failed' });
+    } finally {
+      setIsAssessing(false);
     }
   }, [currentPage, vitals, neuro, march, shootdownRisk, risk, setRisk, setPayloadItems, navigation]);
 
@@ -228,9 +233,16 @@ export function TriageFormScreen() {
               <View style={styles.rowCenter}>
                 <TextInput
                   style={[styles.input, styles.flex1]}
-                  value={vitals.temperature?.toString() ?? ''}
-                  onChangeText={(t) => setVitals('temperature', t ? Number(t) : null)}
-                  keyboardType="numeric"
+                  value={tempText !== '' ? tempText : vitals.temperature?.toString() ?? ''}
+                  onChangeText={(t) => {
+                    const filtered = t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                    setTempText(filtered);
+                    if (filtered === '') { setVitals('temperature', null); return; }
+                    const n = parseFloat(filtered);
+                    if (!isNaN(n)) setVitals('temperature', n);
+                  }}
+                  onBlur={() => setTempText('')}
+                  keyboardType="decimal-pad"
                   placeholder="Temp"
                   placeholderTextColor={colors.textDim}
                 />
@@ -381,6 +393,14 @@ export function TriageFormScreen() {
       </View>
 
       <Text style={styles.watermark}>{patientId} {missionId}</Text>
+
+      {isAssessing && (
+        <View style={styles.assessingOverlay}>
+          <ActivityIndicator size="large" color={colors.accent} />
+          <Text style={styles.assessingText}>MEDIC AI ASSESSING</Text>
+          <Text style={styles.assessingSubText}>Analyzing patient data... 15–30 seconds</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -508,6 +528,8 @@ const styles = StyleSheet.create({
     borderRadius: sizing.borderRadius,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'transparent',
   },
   locationGrid: {
     gap: spacing.md,
@@ -529,15 +551,18 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   locationSelected: {
-    backgroundColor: colors.accentDim,
-    borderColor: colors.accent,
+    backgroundColor: colors.accent,
+    borderColor: colors.white,
+    borderWidth: 3,
   },
   locationUnselected: {
     backgroundColor: colors.surface2,
     borderColor: colors.border,
+    borderWidth: 2,
   },
   locationTextSelected: {
-    color: colors.accent,
+    color: colors.bg,
+    fontWeight: '700',
   },
   locationTextUnselected: {
     color: colors.textDim,
@@ -573,10 +598,33 @@ const styles = StyleSheet.create({
     backgroundColor: colors.red,
   },
   selectedBorder: {
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: colors.white,
+  },
+  assessingOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: colors.bg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.lg,
+    opacity: 0.97,
+  },
+  assessingText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.accent,
+    textAlign: 'center',
+  },
+  assessingSubText: {
+    fontSize: 15,
+    color: colors.textDim,
+    textAlign: 'center',
   },
   darkText: {
     color: colors.bg,
+  },
+  unselectedOpacity: {
+    opacity: 0.45,
   },
 });

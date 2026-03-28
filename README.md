@@ -1,121 +1,114 @@
 # MedIC — Field-Deployable TBI Triage Decision Support
 
-React Native Android app for special operations field medics. Offline-first TBI/hemorrhage triage tool running on Android tablets (BATDOK hardware). See `MedIC_PROJECT.md` for full project specification.
+React Native Android app for special operations field medics. Offline-first TBI/hemorrhage triage tool with on-device Qwen3 AI. See `MedIC_PROJECT.md` for full project specification.
 
 ## Prerequisites
 
-- Node.js 18+ (20.x recommended)
+- Node.js 20.19.4+ (use nvm: `nvm install 20.19.4 && nvm use 20.19.4`)
 - Java 17
-- Android Studio with:
-  - Android SDK Platform 34+
-  - Android SDK Build-Tools 35.0.0
-  - Android SDK Command-line Tools
-- Physical Android device or emulator (API 34 recommended)
-
-Add to `~/.zshrc` or `~/.bashrc`:
+- Android Studio with Android SDK Platform 34+, Build-Tools 35.0.0
+- Emulator or physical device (API 34+)
 
 ```bash
 export ANDROID_HOME=$HOME/Library/Android/sdk
-export PATH=$PATH:$ANDROID_HOME/emulator
-export PATH=$PATH:$ANDROID_HOME/platform-tools
+export PATH=$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools
 ```
 
 ## Quick Start
 
 ```bash
-git clone <repository-url>
-cd MedIC
 npm install
+npm start        # Terminal 1 — keep running
+npm run android  # Terminal 2 — first run takes ~3 min
 ```
 
-Then in two terminals:
+## Emulator Setup (Required for Qwen3)
+
+The Qwen3-1.7B model needs 1.2GB RAM headroom. Configure your AVD in Android Studio → Virtual Device Manager → Edit:
+
+| Setting | Value |
+|---|---|
+| RAM | **6 GB** |
+| VM heap | **512 MB** |
+| Internal storage | **10 GB** |
+
+After changing settings, restart the emulator.
+
+## Qwen3 Model Setup
+
+Download the model (~1.1GB) and push to the emulator:
 
 ```bash
-# Terminal 1 — Metro bundler (keep running)
-npm start
+# Download
+wget -O ~/dev/MedIC/models/qwen3-1.7b-q4_k_m.gguf \
+  "https://huggingface.co/ggml-org/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q4_K_M.gguf"
 
-# Terminal 2 — build and install
-npm run android
+# Push to emulator (do this once, survives app reinstalls)
+adb push ~/dev/MedIC/models/qwen3-1.7b-q4_k_m.gguf \
+  /data/local/tmp/medic_models/qwen3-1.7b-q4_k_m.gguf
+
+# Verify
+adb shell ls -lh /data/local/tmp/medic_models/
 ```
 
-First build downloads Gradle + Android dependencies (~2-5 min). Subsequent builds are ~15s.
+The model loads on app start (~15-30s). Watch Metro logs for `[Qwen3] Model loaded successfully ✓`.
+
+If you see "AI model not loaded — responses are stubs", the model file isn't on the device or the emulator ran out of memory.
 
 ## Build Configuration
 
-Versions are pinned for compatibility. Do not upgrade without testing.
-
-| Component | Version | Notes |
-|---|---|---|
-| react-native | 0.73.0 | |
-| react | 18.2.0 | |
-| react-native-screens | **3.29.0** | 3.36+ requires RN 0.74 |
-| react-native-gesture-handler | **2.20.0** | 2.30+ breaks on RN 0.73 |
-| Android Gradle Plugin | 8.6.0 | |
-| Gradle | 8.7 | |
-| compileSdk | 35 | Required by androidx.core 1.16 |
-| targetSdk | 34 | |
-| minSdk | 23 | |
+| Component | Version |
+|---|---|
+| react-native | 0.76.5 |
+| react | 18.3.1 |
+| llama.rn | 0.11.5 |
+| react-native-screens | 3.35.0 |
+| New Architecture | enabled |
+| Gradle | 8.10.2 |
+| compileSdk | 35 / targetSdk 34 / minSdk 24 |
 
 ## Project Structure
 
 ```
 src/
-├── screens/       # Layout + wiring only (Home, March, TBI, Review, Confirm, Recent)
-├── components/    # Reusable UI (BigButton, SegmentSelector, NumericStepper, etc.)
-├── theme/         # colors.ts, spacing.ts, typography.ts, styles.ts
-├── store/         # Zustand state (usePatientStore.ts)
-├── engine/        # droneCalc.ts, payloadEncoder.ts
-├── ai/            # Qwen3 stubs — Phase 1 placeholders
-└── types/         # TypeScript type definitions
+├── screens/     # All screens (Home → AssessmentMode → PatientInfo → MARCH → TriageForm → Review → Confirm → InteractiveCare)
+├── components/  # Reusable UI (BigButton, SegmentSelector, etc.)
+├── theme/       # colors.ts, spacing.ts, typography.ts, styles.ts
+├── store/       # Zustand state
+├── engine/      # droneCalc.ts, payloadEncoder.ts
+├── ai/          # qwenBridge.ts, modelManager.ts, prompts.ts
+├── storage/     # AsyncStorage: drafts + recent requests
+└── types/       # TypeScript types
 ```
 
 ## Code Rules
 
-- **Zero inline styles** — all styles reference theme tokens
-- **Zero hardcoded values** — colors, spacing, sizes from `src/theme/` only
-- **Components max ~150 lines** — split if larger
+- **Zero inline styles** — all values from theme tokens
+- **Zero hardcoded hex values** — all from `src/theme/colors.ts`
 - **Screens are layout only** — no business logic, no StyleSheet.create
-- **Three input primitives only:** `BigButton`, `SegmentSelector`, `NumericStepper`
-- **Component styles** at bottom of file in `StyleSheet.create({})`, shared styles in `src/theme/styles.ts`
-
-## Git Strategy
-
-### In git:
-- `src/`, `android/`, config files (`package.json`, `tsconfig.json`, `babel.config.js`, `metro.config.js`, `App.tsx`, `index.js`)
-- `android/gradlew`, `android/gradle/wrapper/` (Gradle wrapper)
-
-### Not in git:
-- `node_modules/`, `android/app/build/`, `android/.gradle/`, `android/local.properties`, `.idea/`, `*.iml`
-
-## Offline Builds
-
-MedIC runs fully offline in the field. For offline development:
-
-1. Run `npm install` and `npm run android` once with internet (caches all dependencies)
-2. After that, builds work offline — npm packages in `node_modules/`, Gradle cache in `~/.gradle/caches/`, SDK in `$ANDROID_HOME`
+- **Three input primitives:** `BigButton`, `SegmentSelector`, `NumericStepper`
+- **Component styles** at bottom of file in `StyleSheet.create({})`
 
 ## Troubleshooting
 
-**Metro port 8081 in use:**
+**Metro won't start:**
 ```bash
+nvm use 20.19.4
 lsof -ti:8081 | xargs kill -9
 npm start
 ```
-
-**Emulator "Unknown API Level":**
-Your emulator is running an API level the build tools don't recognize (e.g. API 36). Create an AVD with API 34 in Android Studio's AVD Manager, or install the APK manually with `adb install`.
 
 **"Could not connect to development server":**
 ```bash
 adb reverse tcp:8081 tcp:8081
 ```
-Then reload the app. This forwards the emulator's port to your host machine.
 
-**`npm install` cache errors:**
-```bash
-npm cache clean --force
-npm install
-```
+**Model keeps crashing app:**
+Emulator RAM too low. Increase to 6GB in AVD Manager (see Emulator Setup above).
+
+**Model not loading ("using stub"):**
+- Check model is on device: `adb shell ls -lh /data/local/tmp/medic_models/`
+- Re-push if missing: see Qwen3 Model Setup above
 
 **Clean rebuild:**
 ```bash
@@ -123,10 +116,40 @@ cd android && ./gradlew clean && cd ..
 npm run android
 ```
 
+## Test Cases
+
+Use these to validate risk scoring end-to-end.
+
+### Case 1 — CRITICAL
+- Patient: `ALPHA-1` / Mission: `M-001`
+- MARCH: Hemorrhage `UNCONTROLLED`, all else stable
+- BP: `85/50` | HR: `130` | SpO2: `91` | Temp: `96.2`
+- GCS: `6` | Consciousness: `PAIN` | Location: `FRONT`, `LEFT`
+- Notes: `blast injury, seizure activity observed, left pupil blown`
+- Shootdown: `75%`
+- **Expected:** CRITICAL, hypertonic saline + blood + burr hole in payload, BP alert fires (hemorrhage + TBI conflict)
+
+### Case 2 — HIGH
+- Patient: `BRAVO-2` / Mission: `M-002`
+- MARCH: all stable
+- BP: `110/70` | HR: `105` | SpO2: `95` | Temp: `98.1`
+- GCS: `10` | Consciousness: `VOICE` | Location: `TOP`
+- Notes: `GSW to head, was GCS 13 twenty minutes ago, now declining`
+- Shootdown: `25%`
+- **Expected:** HIGH, evacuation urgency in recommendations, ketamine in payload
+
+### Case 3 — LOW/MODERATE
+- Patient: `CHARLIE-3` / Mission: `M-003`
+- MARCH: all stable
+- BP: `128/82` | HR: `88` | SpO2: `99` | Temp: `98.6`
+- GCS: `14` | Consciousness: `ALERT` | Location: `BACK`
+- Notes: `blunt trauma from fall, mild headache, pupils equal and reactive`
+- Shootdown: `10%`
+- **Expected:** LOW or MODERATE, minimal payload, no BP alert, monitoring recommendations only
+
 ## Phase 2 TODO
 
-- [ ] Integrate Qwen3 via react-native-executorch
-- [ ] Implement Qwen3-ASR for voice input
-- [ ] Add TTS output (Kokoro/Piper)
-- [ ] Connect real HTTP POST for squirt payload
-- [ ] Enable VoiceFAB functionality
+- [ ] Qwen3-ASR for voice form input
+- [ ] TTS output (Kokoro/Piper)
+- [ ] Real HTTP POST for squirt payload
+- [ ] VoiceFAB audio pipeline

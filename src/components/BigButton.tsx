@@ -30,7 +30,7 @@ export function BigButton({ label, sublabel, variant, onPress, disabled, size = 
       activeOpacity={0.75}
     >
       <View>
-        <Text style={[typography.buttonLabel, variantStyles.text]}>
+        <Text style={[typography.buttonLabel, size === 'small' && styles.smallLabel, variantStyles.text]}>
           {label}
         </Text>
         {sublabel && (
@@ -83,5 +83,8 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.5,
+  },
+  smallLabel: {
+    fontSize: 16,
   },
 });

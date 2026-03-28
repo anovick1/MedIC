@@ -1,11 +1,9 @@
-plugins {
-    id "com.android.application"
-    id "org.jetbrains.kotlin.android"
-    id "com.facebook.react"
-}
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.facebook.react"
 
 react {
-    /* Autolinking */
+    autolinkLibrariesWithApp()
 }
 
 def enableProguardInReleaseBuilds = false
@@ -14,7 +12,7 @@ def jscFlavor = 'org.webkit:android-jsc:+'
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
-    compileSdkVersion rootProject.ext.compileSdkVersion
+    compileSdk rootProject.ext.compileSdkVersion
 
     namespace "com.medic"
     defaultConfig {
@@ -26,7 +24,6 @@ android {
     }
     buildTypes {
         debug {
-            // Uses default debug keystore from ~/.android/debug.keystore (created by Android Studio/sdkmanager)
         }
         release {
             minifyEnabled enableProguardInReleaseBuilds
@@ -37,7 +34,6 @@ android {
 
 dependencies {
     implementation("com.facebook.react:react-android")
-    implementation("com.facebook.react:flipper-integration")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
@@ -45,5 +41,3 @@ dependencies {
         implementation jscFlavor
     }
 }
-
-apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)
