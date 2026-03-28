@@ -26,11 +26,11 @@ npm run android  # Terminal 2 — first run takes ~3 min
 
 The Qwen3-1.7B model needs 1.2GB RAM headroom. Configure your AVD in Android Studio → Virtual Device Manager → Edit:
 
-| Setting | Value |
-|---|---|
-| RAM | **6 GB** |
-| VM heap | **512 MB** |
-| Internal storage | **10 GB** |
+| Setting          | Value      |
+| ---------------- | ---------- |
+| RAM              | **6 GB**   |
+| VM heap          | **512 MB** |
+| Internal storage | **10 GB**  |
 
 After changing settings, restart the emulator.
 
@@ -57,15 +57,15 @@ If you see "AI model not loaded — responses are stubs", the model file isn't o
 
 ## Build Configuration
 
-| Component | Version |
-|---|---|
-| react-native | 0.76.5 |
-| react | 18.3.1 |
-| llama.rn | 0.11.5 |
-| react-native-screens | 3.35.0 |
-| New Architecture | enabled |
-| Gradle | 8.10.2 |
-| compileSdk | 35 / targetSdk 34 / minSdk 24 |
+| Component            | Version                       |
+| -------------------- | ----------------------------- |
+| react-native         | 0.76.5                        |
+| react                | 18.3.1                        |
+| llama.rn             | 0.11.5                        |
+| react-native-screens | 3.35.0                        |
+| New Architecture     | enabled                       |
+| Gradle               | 8.10.2                        |
+| compileSdk           | 35 / targetSdk 34 / minSdk 24 |
 
 ## Project Structure
 
@@ -92,6 +92,7 @@ src/
 ## Troubleshooting
 
 **Metro won't start:**
+
 ```bash
 nvm use 20.19.4
 lsof -ti:8081 | xargs kill -9
@@ -99,18 +100,21 @@ npm start
 ```
 
 **"Could not connect to development server":**
+
 ```bash
 adb reverse tcp:8081 tcp:8081
 ```
 
 **Model keeps crashing app:**
-Emulator RAM too low. Increase to 6GB in AVD Manager (see Emulator Setup above).
+Emulator RAM too low. Increase to 6GB in AVD Manager (see Emulator Setup above), VM heap to 512, internal storage 10gb
 
 **Model not loading ("using stub"):**
+
 - Check model is on device: `adb shell ls -lh /data/local/tmp/medic_models/`
 - Re-push if missing: see Qwen3 Model Setup above
 
 **Clean rebuild:**
+
 ```bash
 cd android && ./gradlew clean && cd ..
 npm run android
@@ -121,6 +125,7 @@ npm run android
 Use these to validate risk scoring end-to-end.
 
 ### Case 1 — CRITICAL
+
 - Patient: `ALPHA-1` / Mission: `M-001`
 - MARCH: Hemorrhage `UNCONTROLLED`, all else stable
 - BP: `85/50` | HR: `130` | SpO2: `91` | Temp: `96.2`
@@ -130,6 +135,7 @@ Use these to validate risk scoring end-to-end.
 - **Expected:** CRITICAL, hypertonic saline + blood + burr hole in payload, BP alert fires (hemorrhage + TBI conflict)
 
 ### Case 2 — HIGH
+
 - Patient: `BRAVO-2` / Mission: `M-002`
 - MARCH: all stable
 - BP: `110/70` | HR: `105` | SpO2: `95` | Temp: `98.1`
@@ -139,6 +145,7 @@ Use these to validate risk scoring end-to-end.
 - **Expected:** HIGH, evacuation urgency in recommendations, ketamine in payload
 
 ### Case 3 — LOW/MODERATE
+
 - Patient: `CHARLIE-3` / Mission: `M-003`
 - MARCH: all stable
 - BP: `128/82` | HR: `88` | SpO2: `99` | Temp: `98.6`
