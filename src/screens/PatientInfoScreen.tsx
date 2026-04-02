@@ -54,6 +54,7 @@ export function PatientInfoScreen() {
           variant="go"
           label="NEXT →"
           size="small"
+          disabled={!patientId.trim() || !missionId.trim()}
           onPress={() => navigation.navigate('MARCH')}
         />
       </View>
@@ -108,6 +109,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
   },
 });

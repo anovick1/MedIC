@@ -3,22 +3,29 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { usePatientStore } from '../store/usePatientStore';
-import { deleteDraft } from '../storage/storage';
+import { deleteDraft, loadAllRequests } from '../storage/storage';
 import { BigButton } from '../components/BigButton';
 import { DataRow } from '../components/DataRow';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 
-type RootStackParamList = { Home: undefined; InteractiveCare: undefined; Confirm: undefined };
+type RootStackParamList = { Home: undefined; InteractiveCare: { requestId?: string }; Confirm: undefined };
 type NavProp = StackNavigationProp<RootStackParamList, 'Confirm'>;
 
 export function ConfirmScreen() {
   const navigation = useNavigation<NavProp>();
   const { patientId, missionId, currentDraftId, saveRequestToStorage, reset } = usePatientStore();
   const [utcTime, setUtcTime] = useState(() => new Date().toISOString().substring(11, 19));
+  const [savedRequestId, setSavedRequestId] = useState<string | null>(null);
 
-  useEffect(() => { saveRequestToStorage(); }, []);
+  useEffect(() => {
+    saveRequestToStorage().then(() => {
+      loadAllRequests().then((reqs) => {
+        if (reqs.length > 0) setSavedRequestId(reqs[0].id);
+      });
+    });
+  }, []);
   useEffect(() => {
     const id = setInterval(() => setUtcTime(new Date().toISOString().substring(11, 19)), 1000);
     return () => clearInterval(id);
@@ -31,7 +38,7 @@ export function ConfirmScreen() {
   };
   const handleContinueCare = async () => {
     if (currentDraftId) await deleteDraft(currentDraftId);
-    navigation.navigate('InteractiveCare');
+    navigation.navigate('InteractiveCare', { requestId: savedRequestId ?? undefined });
   };
 
   return (
@@ -88,7 +95,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
   },
   btnWrap: {
     flex: 1,

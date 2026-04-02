@@ -1,91 +1,95 @@
 import React, { useState, useCallback } from 'react';
-import {
-  View, ScrollView, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
-} from 'react-native';
+import { View, ScrollView, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { usePatientStore } from '../store/usePatientStore';
 import { BigButton } from '../components/BigButton';
 import { AlertBanner } from '../components/AlertBanner';
-import { assessRisk } from '../ai/qwenBridge';
 import { colors } from '../theme/colors';
 import { spacing, sizing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import { sharedStyles } from '../theme/styles';
 
 type RootStackParamList = {
-  Home: undefined;
-  MARCH: undefined;
-  TriageForm: { page: number };
-  ReviewData: undefined;
-  ReviewSend: undefined;
-  Confirm: undefined;
+  MARCH2: undefined; TriageForm: { page: number }; ReviewData: undefined; Home: undefined;
 };
-
 type NavProp = StackNavigationProp<RootStackParamList, 'TriageForm'>;
 type RoutePropType = RouteProp<RootStackParamList, 'TriageForm'>;
 
-/* ── Local: GCS Grid ─────────────────────────────────────────── */
+const TOTAL_PAGES = 8;
 
-const GCS_VALUES = [15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3];
+/* ── GCS option data ─────────────────────────────────────────── */
 
-function gcsColorStyle(v: number) {
-  if (v >= 13) return styles.bgGreen;
-  if (v >= 9) return styles.bgYellow;
-  if (v >= 6) return styles.bgOrange;
-  return styles.bgRed;
+const GCS_EYE = [
+  { v: 4, label: '4', color: colors.green },
+  { v: 3, label: '3', color: colors.yellow },
+  { v: 2, label: '2', color: colors.orange },
+  { v: 1, label: '1', color: colors.red },
+];
+const GCS_VERBAL = [
+  { v: 5, label: '5', color: colors.green },
+  { v: 4, label: '4', color: colors.yellow },
+  { v: 3, label: '3', color: colors.yellow },
+  { v: 2, label: '2', color: colors.orange },
+  { v: 1, label: '1', color: colors.red },
+];
+const GCS_MOTOR = [
+  { v: 6, label: '6', color: colors.green },
+  { v: 5, label: '5', color: colors.green },
+  { v: 4, label: '4', color: colors.yellow },
+  { v: 3, label: '3', color: colors.orange },
+  { v: 2, label: '2', color: colors.red },
+  { v: 1, label: '1', color: colors.red },
+];
+
+function GCSPage({ title, options, selected, onSelect }: {
+  title: string;
+  options: Array<{ v: number; label: string; color: string }>;
+  selected: number | null;
+  onSelect: (v: number) => void;
+}) {
+  return (
+    <>
+      <Text style={styles.pageTitle}>{title}</Text>
+      <View style={styles.gcsOptions}>
+        {options.map((opt) => (
+          <TouchableOpacity
+            key={opt.v}
+            style={[styles.gcsOption, { backgroundColor: opt.color }, selected === opt.v && styles.gcsSelected]}
+            onPress={() => onSelect(opt.v)} activeOpacity={0.75}
+          >
+            <Text style={styles.gcsText}>{opt.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </>
+  );
 }
 
-function GCSGrid({ selected, onSelect }: { selected: number | null; onSelect: (v: number) => void }) {
+/* ── Symptom row ─────────────────────────────────────────────── */
+
+function SymptomRow({ label, value, onSelect }: {
+  label: string; value: boolean | null; onSelect: (v: boolean) => void;
+}) {
   return (
-    <View style={styles.gcsGrid}>
-      {GCS_VALUES.map((v) => (
-        <TouchableOpacity
-          key={v}
-          style={[
-            styles.gcsBtn,
-            v === 3 && styles.gcsBtnWide,
-            gcsColorStyle(v),
-            selected === v && styles.selectedBorder,
-          ]}
-          onPress={() => onSelect(v)}
-          activeOpacity={0.75}
-        >
-          <Text style={styles.gcsBtnText}>{v}</Text>
+    <View style={styles.symptomRow}>
+      <Text style={styles.symptomLabel}>{label}</Text>
+      <View style={styles.symptomBtns}>
+        <TouchableOpacity style={[styles.symptomBtn, value === true ? styles.symYesOn : styles.symYesOff]}
+          onPress={() => onSelect(true)} activeOpacity={0.75}>
+          <Text style={styles.symptomBtnText}>YES</Text>
         </TouchableOpacity>
-      ))}
+        <TouchableOpacity style={[styles.symptomBtn, value === false ? styles.symNoOn : styles.symNoOff]}
+          onPress={() => onSelect(false)} activeOpacity={0.75}>
+          <Text style={styles.symptomBtnText}>NO</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
-/* ── Local: Consciousness Button ─────────────────────────────── */
-
-function ConsciousnessButton(
-  { label, colorStyle, selected, onPress }: {
-    label: string; colorStyle: object; selected: boolean; onPress: () => void;
-  },
-) {
-  return (
-    <TouchableOpacity
-      style={[styles.consciousnessBtn, colorStyle, selected && styles.selectedBorder]}
-      onPress={onPress}
-      activeOpacity={0.75}
-    >
-      <Text style={[typography.buttonLabel, styles.darkText]}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
-/* ── Shootdown Risk color helper ─────────────────────────────── */
-
-function riskColorStyle(v: number) {
-  if (v <= 10) return styles.bgGreen;
-  if (v <= 50) return styles.bgYellow;
-  return styles.bgRed;
-}
-
-/* ── Main Screen ─────────────────────────────────────────────── */
+/* ── Main screen ─────────────────────────────────────────────── */
 
 export function TriageFormScreen() {
   const navigation = useNavigation<NavProp>();
@@ -93,17 +97,35 @@ export function TriageFormScreen() {
   const [currentPage, setCurrentPage] = useState(route.params?.page ?? 1);
   const [showDraftBanner, setShowDraftBanner] = useState(false);
   const [tempText, setTempText] = useState('');
-  const [isAssessing, setIsAssessing] = useState(false);
 
   const {
-    patientId, missionId, vitals, neuro, march, shootdownRisk, risk,
-    setVitals, setNeuro, toggleInjuryLocation,
-    setShootdownRisk, setRisk, setPayloadItems, saveDraftToStorage, setLastPage,
+    patientId, missionId, vitals, neuro, shootdownRisk,
+    setVitals, setNeuro, toggleInjuryLocation, setShootdownRisk,
+    saveDraftToStorage, setLastPage,
   } = usePatientStore();
 
-  React.useEffect(() => {
-    setLastPage(currentPage);
-  }, [currentPage, setLastPage]);
+  React.useEffect(() => { setLastPage(currentPage); }, [currentPage, setLastPage]);
+
+  const gcsTotal = (neuro.gcsEye ?? 0) + (neuro.gcsVerbal ?? 0) + (neuro.gcsMotor ?? 0);
+
+  /* ── Validation ─────────────────────────────────────────────── */
+
+  const isPageComplete = useCallback((): boolean => {
+    switch (currentPage) {
+      case 1: return vitals.bpSystolic !== null && vitals.bpDiastolic !== null && vitals.heartRate !== null;
+      case 2: return vitals.oxygenSaturation !== null && vitals.temperatureC !== null;
+      case 3: return neuro.gcsEye !== null;
+      case 4: return neuro.gcsVerbal !== null;
+      case 5: return neuro.gcsMotor !== null;
+      case 6: return neuro.seizure !== null && neuro.vomiting !== null &&
+        neuro.headExternalHemorrhage !== null && neuro.suspectedICP !== null;
+      case 7: return neuro.injuryLocation.size > 0;
+      case 8: return shootdownRisk !== null;
+      default: return true;
+    }
+  }, [currentPage, vitals, neuro, shootdownRisk]);
+
+  /* ── Handlers ───────────────────────────────────────────────── */
 
   const handleSaveDraft = useCallback(async () => {
     setLastPage(currentPage);
@@ -117,54 +139,27 @@ export function TriageFormScreen() {
     else navigation.goBack();
   }, [currentPage, navigation]);
 
-  const handleNext = useCallback(async () => {
-    if (currentPage < 6) {
-      setCurrentPage(currentPage + 1);
-      return;
-    }
-    setIsAssessing(true);
-    setRisk({ ...risk, loading: true, error: null });
-    try {
-      const result = await assessRisk(vitals, neuro, march, shootdownRisk);
-      setRisk(result);
-      setPayloadItems(result.payloadItems);
-      navigation.navigate('ReviewData');
-    } catch (err: any) {
-      setRisk({ ...risk, loading: false, error: err?.message ?? 'Assessment failed' });
-    } finally {
-      setIsAssessing(false);
-    }
-  }, [currentPage, vitals, neuro, march, shootdownRisk, risk, setRisk, setPayloadItems, navigation]);
+  const handleNext = useCallback(() => {
+    if (currentPage < TOTAL_PAGES) setCurrentPage(currentPage + 1);
+    else navigation.navigate('ReviewData');
+  }, [currentPage, navigation]);
 
-  const nextLabel = currentPage >= 5 ? 'SEND SQUIRT' : 'Next \u2192';
+  const nextLabel = currentPage === TOTAL_PAGES ? 'SEND SQUIRT' : 'NEXT →';
 
-  /* ── Location button helper ────────────────────────────────── */
+  /* ── Location helper ────────────────────────────────────────── */
 
-  const renderLocationBtn = (label: string, value: 'FRONT' | 'BACK' | 'LEFT' | 'RIGHT' | 'TOP') => {
-    const selected = neuro.injuryLocation.has(value);
+  const locBtn = (label: string, value: 'FRONT' | 'BACK' | 'LEFT' | 'RIGHT' | 'TOP') => {
+    const sel = neuro.injuryLocation.has(value);
     return (
-      <TouchableOpacity
-        key={value}
-        style={[
-          styles.locationBtn,
-          selected ? styles.locationSelected : styles.locationUnselected,
-        ]}
-        onPress={() => toggleInjuryLocation(value)}
-        activeOpacity={0.75}
-      >
-        <Text
-          style={[
-            typography.segmentLabel,
-            selected ? styles.locationTextSelected : styles.locationTextUnselected,
-          ]}
-        >
-          {label}
-        </Text>
+      <TouchableOpacity key={value}
+        style={[styles.locationBtn, sel ? styles.locSelected : styles.locUnselected]}
+        onPress={() => toggleInjuryLocation(value)} activeOpacity={0.75}>
+        <Text style={[typography.segmentLabel, sel ? styles.locTextOn : styles.locTextOff]}>{label}</Text>
       </TouchableOpacity>
     );
   };
 
-  /* ── Page renderers ────────────────────────────────────────── */
+  /* ── Pages ──────────────────────────────────────────────────── */
 
   const renderPage = () => {
     switch (currentPage) {
@@ -172,40 +167,25 @@ export function TriageFormScreen() {
         return (
           <>
             <View>
-              <Text style={typography.label}>Blood Pressure:</Text>
-              <View style={styles.rowCenter}>
-                <TextInput
-                  style={[styles.input, styles.flex1]}
-                  value={vitals.bpSystolic?.toString() ?? ''}
-                  onChangeText={(t) => setVitals('bpSystolic', t ? Number(t) : null)}
-                  keyboardType="numeric"
-                  placeholder="SYS"
-                  placeholderTextColor={colors.textDim}
-                />
-                <Text style={styles.unitText}>/</Text>
-                <TextInput
-                  style={[styles.input, styles.flex1]}
-                  value={vitals.bpDiastolic?.toString() ?? ''}
-                  onChangeText={(t) => setVitals('bpDiastolic', t ? Number(t) : null)}
-                  keyboardType="numeric"
-                  placeholder="DIA"
-                  placeholderTextColor={colors.textDim}
-                />
-                <Text style={styles.unitText}>mmHg</Text>
+              <Text style={typography.label}>BLOOD PRESSURE:</Text>
+              <View style={styles.row}>
+                <TextInput style={[styles.input, styles.flex1]} value={vitals.bpSystolic?.toString() ?? ''}
+                  onChangeText={(t) => { const n = parseInt(t, 10); setVitals('bpSystolic', isNaN(n) ? null : n); }}
+                  keyboardType="numeric" placeholder="SYS" placeholderTextColor={colors.textDim} />
+                <Text style={styles.unit}>/</Text>
+                <TextInput style={[styles.input, styles.flex1]} value={vitals.bpDiastolic?.toString() ?? ''}
+                  onChangeText={(t) => { const n = parseInt(t, 10); setVitals('bpDiastolic', isNaN(n) ? null : n); }}
+                  keyboardType="numeric" placeholder="DIA" placeholderTextColor={colors.textDim} />
+                <Text style={styles.unit}>mmHg</Text>
               </View>
             </View>
             <View>
-              <Text style={typography.label}>Heart Rate:</Text>
-              <View style={styles.rowCenter}>
-                <TextInput
-                  style={[styles.input, styles.flex1]}
-                  value={vitals.heartRate?.toString() ?? ''}
-                  onChangeText={(t) => setVitals('heartRate', t ? Number(t) : null)}
-                  keyboardType="numeric"
-                  placeholder="HR"
-                  placeholderTextColor={colors.textDim}
-                />
-                <Text style={styles.unitText}>bpm</Text>
+              <Text style={typography.label}>HEART RATE:</Text>
+              <View style={styles.row}>
+                <TextInput style={[styles.input, styles.flex1]} value={vitals.heartRate?.toString() ?? ''}
+                  onChangeText={(t) => { const n = parseInt(t, 10); setVitals('heartRate', isNaN(n) ? null : n); }}
+                  keyboardType="numeric" placeholder="BPM" placeholderTextColor={colors.textDim} />
+                <Text style={styles.unit}>bpm</Text>
               </View>
             </View>
           </>
@@ -215,130 +195,81 @@ export function TriageFormScreen() {
         return (
           <>
             <View>
-              <Text style={typography.label}>Oxygen Saturation:</Text>
-              <View style={styles.rowCenter}>
-                <TextInput
-                  style={[styles.input, styles.flex1]}
-                  value={vitals.oxygenSaturation?.toString() ?? ''}
-                  onChangeText={(t) => setVitals('oxygenSaturation', t ? Number(t) : null)}
-                  keyboardType="numeric"
-                  placeholder="SpO2"
-                  placeholderTextColor={colors.textDim}
-                />
-                <Text style={styles.unitText}>%</Text>
+              <Text style={typography.label}>OXYGEN SATURATION:</Text>
+              <View style={styles.row}>
+                <TextInput style={[styles.input, styles.flex1]} value={vitals.oxygenSaturation?.toString() ?? ''}
+                  onChangeText={(t) => { const n = parseInt(t, 10); setVitals('oxygenSaturation', isNaN(n) ? null : n); }}
+                  keyboardType="numeric" placeholder="SpO2" placeholderTextColor={colors.textDim} />
+                <Text style={styles.unit}>%</Text>
               </View>
             </View>
             <View>
-              <Text style={typography.label}>Temperature:</Text>
-              <View style={styles.rowCenter}>
-                <TextInput
-                  style={[styles.input, styles.flex1]}
-                  value={tempText !== '' ? tempText : vitals.temperature?.toString() ?? ''}
+              <Text style={typography.label}>TEMPERATURE:</Text>
+              <View style={styles.row}>
+                <TextInput style={[styles.input, styles.flex1]}
+                  value={tempText !== '' ? tempText : vitals.temperatureC?.toString() ?? ''}
                   onChangeText={(t) => {
-                    const filtered = t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
-                    setTempText(filtered);
-                    if (filtered === '') { setVitals('temperature', null); return; }
-                    const n = parseFloat(filtered);
-                    if (!isNaN(n)) setVitals('temperature', n);
+                    const f = t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                    setTempText(f);
+                    const n = parseFloat(f);
+                    if (!isNaN(n)) setVitals('temperatureC', n);
+                    else if (f === '') setVitals('temperatureC', null);
                   }}
                   onBlur={() => setTempText('')}
-                  keyboardType="decimal-pad"
-                  placeholder="Temp"
-                  placeholderTextColor={colors.textDim}
-                />
-                <Text style={styles.unitText}>{'\u00B0F'}</Text>
+                  keyboardType="decimal-pad" placeholder="Temp" placeholderTextColor={colors.textDim} />
+                <Text style={styles.unit}>°C</Text>
               </View>
             </View>
           </>
         );
 
       case 3:
-        return (
-          <>
-            <Text style={typography.label}>GCS Score:</Text>
-            <GCSGrid selected={neuro.gcs} onSelect={(v) => setNeuro('gcs', v)} />
-          </>
-        );
+        return <GCSPage title="GCS: EYE OPENING" options={GCS_EYE} selected={neuro.gcsEye} onSelect={(v) => setNeuro('gcsEye', v)} />;
 
       case 4:
-        return (
-          <>
-            <Text style={typography.label}>Consciousness:</Text>
-            <View style={styles.consciousnessGroup}>
-              <ConsciousnessButton
-                label="Alert"
-                colorStyle={styles.bgGreen}
-                selected={neuro.consciousness === 'ALERT'}
-                onPress={() => setNeuro('consciousness', 'ALERT')}
-              />
-              <ConsciousnessButton
-                label="Responds to Voice"
-                colorStyle={styles.bgYellow}
-                selected={neuro.consciousness === 'VOICE'}
-                onPress={() => setNeuro('consciousness', 'VOICE')}
-              />
-              <ConsciousnessButton
-                label="Responds to Pain"
-                colorStyle={styles.bgOrange}
-                selected={neuro.consciousness === 'PAIN'}
-                onPress={() => setNeuro('consciousness', 'PAIN')}
-              />
-              <ConsciousnessButton
-                label="Unresponsive"
-                colorStyle={styles.bgRed}
-                selected={neuro.consciousness === 'UNRESPONSIVE'}
-                onPress={() => setNeuro('consciousness', 'UNRESPONSIVE')}
-              />
-            </View>
-          </>
-        );
+        return <GCSPage title="GCS: VERBAL RESPONSE" options={GCS_VERBAL} selected={neuro.gcsVerbal} onSelect={(v) => setNeuro('gcsVerbal', v)} />;
 
       case 5:
+        return <GCSPage title="GCS: MOTOR RESPONSE" options={GCS_MOTOR} selected={neuro.gcsMotor} onSelect={(v) => setNeuro('gcsMotor', v)} />;
+
+      case 6:
         return (
           <>
-            <Text style={typography.label}>Injury Location:</Text>
-            <View style={styles.locationGrid}>
-              <View style={styles.locationRow}>
-                {renderLocationBtn('Front', 'FRONT')}
-                {renderLocationBtn('Back', 'BACK')}
-              </View>
-              <View style={styles.locationRow}>
-                {renderLocationBtn('Left', 'LEFT')}
-                {renderLocationBtn('Right', 'RIGHT')}
-              </View>
-              <View style={styles.locationRowCenter}>
-                {renderLocationBtn('Top', 'TOP')}
-              </View>
-            </View>
-            <Text style={typography.label}>Notes:</Text>
-            <TextInput
-              style={styles.notesInput}
-              value={neuro.notes}
-              onChangeText={(t) => setNeuro('notes', t)}
-              multiline
-              placeholder="Additional notes..."
-              placeholderTextColor={colors.textDim}
-            />
+            <Text style={styles.pageTitle}>SYMPTOMS</Text>
+            <SymptomRow label="Seizure" value={neuro.seizure} onSelect={(v) => setNeuro('seizure', v)} />
+            <SymptomRow label="Vomiting" value={neuro.vomiting} onSelect={(v) => setNeuro('vomiting', v)} />
+            <SymptomRow label="Head External Hemorrhage" value={neuro.headExternalHemorrhage} onSelect={(v) => setNeuro('headExternalHemorrhage', v)} />
+            <SymptomRow label="Suspected ICP" value={neuro.suspectedICP} onSelect={(v) => setNeuro('suspectedICP', v)} />
           </>
         );
 
-      case 6: {
-        const RISK_VALUES: Array<0 | 10 | 25 | 50 | 75 | 90> = [0, 10, 25, 50, 75, 90];
+      case 7:
         return (
           <>
-            <Text style={typography.label}>Shootdown Risk:</Text>
+            <Text style={styles.pageTitle}>INJURY LOCATION</Text>
+            <View style={styles.locGrid}>
+              <View style={styles.locRow}>{locBtn('FRONT', 'FRONT')}{locBtn('BACK', 'BACK')}</View>
+              <View style={styles.locRow}>{locBtn('LEFT', 'LEFT')}{locBtn('RIGHT', 'RIGHT')}</View>
+              <View style={styles.locCenter}>{locBtn('TOP', 'TOP')}</View>
+            </View>
+            <Text style={typography.label}>NOTES:</Text>
+            <TextInput style={styles.notesInput} value={neuro.notes}
+              onChangeText={(t) => setNeuro('notes', t)}
+              multiline placeholder="Additional notes..." placeholderTextColor={colors.textDim} />
+          </>
+        );
+
+      case 8: {
+        const VALS: Array<0 | 10 | 25 | 50 | 75 | 90> = [0, 10, 25, 50, 75, 90];
+        const rc = (v: number) => v <= 10 ? styles.bgGreen : v <= 50 ? styles.bgYellow : styles.bgRed;
+        return (
+          <>
+            <Text style={styles.pageTitle}>DRONE SHOOTDOWN RISK</Text>
             <View style={styles.riskGrid}>
-              {RISK_VALUES.map((v) => (
-                <TouchableOpacity
-                  key={v}
-                  style={[
-                    styles.riskBtn,
-                    riskColorStyle(v),
-                    shootdownRisk === v && styles.selectedBorder,
-                  ]}
-                  onPress={() => setShootdownRisk(v)}
-                  activeOpacity={0.75}
-                >
+              {VALS.map((v) => (
+                <TouchableOpacity key={v}
+                  style={[styles.riskBtn, rc(v), shootdownRisk === v && styles.selectedBorder]}
+                  onPress={() => setShootdownRisk(v)} activeOpacity={0.75}>
                   <Text style={styles.riskBtnText}>{v}%</Text>
                 </TouchableOpacity>
               ))}
@@ -347,12 +278,11 @@ export function TriageFormScreen() {
         );
       }
 
-      default:
-        return null;
+      default: return null;
     }
   };
 
-  /* ── Render ────────────────────────────────────────────────── */
+  /* ── Render ─────────────────────────────────────────────────── */
 
   return (
     <View style={sharedStyles.screen}>
@@ -361,13 +291,16 @@ export function TriageFormScreen() {
           <Text style={styles.backText}>{'< Back'}</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>TRIAGE FORM</Text>
-        <Text style={styles.headerPage}>{currentPage}/6</Text>
+        <Text style={styles.headerPage}>{currentPage}/{TOTAL_PAGES}</Text>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.pageContent}
-        keyboardShouldPersistTaps="handled"
-      >
+      {currentPage >= 3 && currentPage <= 5 && (
+        <View style={styles.gcsTotalBar}>
+          <Text style={styles.gcsTotalText}>GCS Total: {gcsTotal}</Text>
+        </View>
+      )}
+
+      <ScrollView contentContainerStyle={styles.pageContent} keyboardShouldPersistTaps="handled">
         {renderPage()}
       </ScrollView>
 
@@ -379,28 +312,15 @@ export function TriageFormScreen() {
 
       <View style={styles.footer}>
         <View style={styles.footerBtn}>
-          <BigButton variant="neutral" label="Save Draft" size="small" onPress={handleSaveDraft} />
+          <BigButton variant="neutral" label="SAVE DRAFT" size="small" onPress={handleSaveDraft} />
         </View>
         <View style={styles.footerBtn}>
-          <BigButton
-            variant="go"
-            label={nextLabel}
-            size="small"
-            onPress={handleNext}
-            disabled={risk.loading}
-          />
+          <BigButton variant="go" label={nextLabel} size="small"
+            disabled={!isPageComplete()} onPress={handleNext} />
         </View>
       </View>
 
       <Text style={styles.watermark}>{patientId} {missionId}</Text>
-
-      {isAssessing && (
-        <View style={styles.assessingOverlay}>
-          <ActivityIndicator size="large" color={colors.accent} />
-          <Text style={styles.assessingText}>MEDIC AI ASSESSING</Text>
-          <Text style={styles.assessingSubText}>Analyzing patient data... 15–30 seconds</Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -408,223 +328,50 @@ export function TriageFormScreen() {
 /* ── Styles ──────────────────────────────────────────────────── */
 
 const styles = StyleSheet.create({
-  pageContent: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.xxl,
-    gap: spacing.xxl,
-    justifyContent: 'center',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    paddingTop: spacing.xl,
-  },
-  backBtn: {
-    paddingVertical: spacing.xs,
-  },
-  backText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.accent,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  headerPage: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.textDim,
-  },
-  footer: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-  },
-  footerBtn: {
-    flex: 1,
-  },
-  bannerWrapper: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
-  watermark: {
-    position: 'absolute',
-    bottom: spacing.xs,
-    right: spacing.sm,
-    fontSize: 11,
-    fontFamily: 'monospace',
-    color: colors.textDim,
-  },
-  input: {
-    height: sizing.buttonHeight,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: sizing.borderRadius,
-    color: colors.text,
-    paddingHorizontal: spacing.lg,
-    fontSize: 22,
-  },
-  rowCenter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  flex1: {
-    flex: 1,
-  },
-  unitText: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: colors.textDim,
-  },
-  notesInput: {
-    minHeight: 140,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: sizing.borderRadius,
-    color: colors.text,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    fontSize: 20,
-    textAlignVertical: 'top',
-  },
-  gcsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: spacing.lg,
-  },
-  gcsBtn: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  gcsBtnWide: {
-    width: 100,
-  },
-  gcsBtnText: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: colors.bg,
-  },
-  consciousnessGroup: {
-    gap: spacing.lg,
-  },
-  consciousnessBtn: {
-    height: sizing.buttonHeight,
-    borderRadius: sizing.borderRadius,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'transparent',
-  },
-  locationGrid: {
-    gap: spacing.md,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  locationRowCenter: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  locationBtn: {
-    flex: 1,
-    height: sizing.buttonHeight,
-    borderRadius: sizing.borderRadius,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-  },
-  locationSelected: {
-    backgroundColor: colors.accent,
-    borderColor: colors.white,
-    borderWidth: 3,
-  },
-  locationUnselected: {
-    backgroundColor: colors.surface2,
-    borderColor: colors.border,
-    borderWidth: 2,
-  },
-  locationTextSelected: {
-    color: colors.bg,
-    fontWeight: '700',
-  },
-  locationTextUnselected: {
-    color: colors.textDim,
-  },
-  riskGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-  riskBtn: {
-    flexGrow: 1,
-    flexBasis: '45%',
-    height: sizing.buttonHeight,
-    borderRadius: sizing.borderRadius,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  riskBtnText: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.bg,
-  },
-  bgGreen: {
-    backgroundColor: colors.green,
-  },
-  bgYellow: {
-    backgroundColor: colors.yellow,
-  },
-  bgOrange: {
-    backgroundColor: colors.orange,
-  },
-  bgRed: {
-    backgroundColor: colors.red,
-  },
-  selectedBorder: {
-    borderWidth: 3,
-    borderColor: colors.white,
-  },
-  assessingOverlay: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: colors.bg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: spacing.lg,
-    opacity: 0.97,
-  },
-  assessingText: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.accent,
-    textAlign: 'center',
-  },
-  assessingSubText: {
-    fontSize: 15,
-    color: colors.textDim,
-    textAlign: 'center',
-  },
-  darkText: {
-    color: colors.bg,
-  },
-  unselectedOpacity: {
-    opacity: 0.45,
-  },
+  pageContent: { flexGrow: 1, paddingHorizontal: spacing.xl, paddingVertical: spacing.xxl, gap: spacing.xxl, justifyContent: 'center' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: spacing.xl, paddingBottom: spacing.md },
+  backBtn: { paddingVertical: spacing.xs },
+  backText: { fontSize: 16, fontWeight: '600', color: colors.accent },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: colors.text, letterSpacing: 1, textTransform: 'uppercase' },
+  headerPage: { fontSize: 20, fontWeight: '700', color: colors.textDim },
+  gcsTotalBar: { alignItems: 'center', paddingBottom: spacing.sm },
+  gcsTotalText: { fontSize: 24, fontWeight: '900', color: colors.accent },
+  footer: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  footerBtn: { flex: 1 },
+  bannerWrapper: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
+  watermark: { position: 'absolute', bottom: spacing.xs, right: spacing.sm, fontSize: 11, fontFamily: 'monospace', color: colors.textDim },
+  pageTitle: { fontSize: 22, fontWeight: '700', color: colors.text, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 1 },
+  input: { height: sizing.buttonHeight, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: sizing.borderRadius, color: colors.text, paddingHorizontal: spacing.lg, fontSize: 22 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  flex1: { flex: 1 },
+  unit: { fontSize: 22, fontWeight: '600', color: colors.textDim },
+  gcsOptions: { gap: spacing.md },
+  gcsOption: { height: sizing.buttonHeight, borderRadius: sizing.borderRadius, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: 'transparent' },
+  gcsSelected: { borderColor: colors.white },
+  gcsText: { fontSize: 20, fontWeight: '700', color: colors.bg },
+  symptomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
+  symptomLabel: { flex: 1, fontSize: 18, fontWeight: '600', color: colors.text },
+  symptomBtns: { flexDirection: 'row', gap: spacing.sm },
+  symptomBtn: { width: 80, height: sizing.buttonHeightSm, borderRadius: sizing.borderRadius, justifyContent: 'center', alignItems: 'center' },
+  symYesOn: { backgroundColor: colors.green, borderWidth: 4, borderColor: colors.white },
+  symYesOff: { backgroundColor: colors.green },
+  symNoOn: { backgroundColor: colors.red, borderWidth: 4, borderColor: colors.white },
+  symNoOff: { backgroundColor: colors.red },
+  symptomBtnText: { fontSize: 15, fontWeight: '700', color: colors.bg },
+  notesInput: { minHeight: 140, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: sizing.borderRadius, color: colors.text, paddingHorizontal: spacing.lg, paddingVertical: spacing.lg, fontSize: 18, textAlignVertical: 'top' },
+  locGrid: { gap: spacing.md },
+  locRow: { flexDirection: 'row', gap: spacing.md },
+  locCenter: { flexDirection: 'row', justifyContent: 'center' },
+  locationBtn: { flex: 1, height: sizing.buttonHeight, borderRadius: sizing.borderRadius, justifyContent: 'center', alignItems: 'center', borderWidth: 2 },
+  locSelected: { backgroundColor: colors.accent, borderColor: colors.white, borderWidth: 3 },
+  locUnselected: { backgroundColor: colors.surface2, borderColor: colors.border, borderWidth: 2 },
+  locTextOn: { color: colors.bg, fontWeight: '700' },
+  locTextOff: { color: colors.textDim },
+  riskGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  riskBtn: { flexGrow: 1, flexBasis: '45%', height: sizing.buttonHeight, borderRadius: sizing.borderRadius, justifyContent: 'center', alignItems: 'center' },
+  riskBtnText: { fontSize: 28, fontWeight: '700', color: colors.bg },
+  bgGreen: { backgroundColor: colors.green },
+  bgYellow: { backgroundColor: colors.yellow },
+  bgRed: { backgroundColor: colors.red },
+  selectedBorder: { borderWidth: 3, borderColor: colors.white },
 });

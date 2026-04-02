@@ -1,21 +1,21 @@
-import React from 'react';
-import { View, Text, StyleSheet, StatusBar } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { BigButton } from '../components/BigButton';
-import { colors } from '../theme/colors';
-import { spacing } from '../theme/spacing';
-import { typography } from '../theme/typography';
-import { sharedStyles } from '../theme/styles';
+import React from "react";
+import { View, Text, StyleSheet, StatusBar } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { BigButton } from "../components/BigButton";
+import { colors } from "../theme/colors";
+import { spacing } from "../theme/spacing";
+import { typography } from "../theme/typography";
+import { sharedStyles } from "../theme/styles";
 
 type RootStackParamList = {
   Home: undefined;
   AssessmentMode: undefined;
   RecentPatients: undefined;
   Drafts: undefined;
+  InteractiveCare: { requestId?: string };
 };
-
-type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
+type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, "Home">;
 
 export function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
@@ -24,37 +24,46 @@ export function HomeScreen() {
     <View style={styles.container}>
       <StatusBar hidden />
 
-      <View style={styles.topSpacer} />
+      <View style={styles.titleBar}>
+        <Text style={styles.title}>MEDIC TRIAGE</Text>
+        <View style={sharedStyles.divider} />
+      </View>
 
-      <Text style={styles.title}>MEDIC TRIAGE</Text>
-
-      <View style={styles.mainButton}>
+      <View style={styles.center}>
         <BigButton
           variant="go"
           label="NEW PATIENT"
-          onPress={() => navigation.navigate('AssessmentMode')}
-        />
-      </View>
-
-      <View style={sharedStyles.divider} />
-
-      <View style={styles.secondaryButtons}>
-        <BigButton
-          variant="tan"
-          label="RECENT REQUESTS"
-          size="small"
-          onPress={() => navigation.navigate('RecentPatients')}
+          onPress={() => navigation.navigate("AssessmentMode")}
         />
 
         <BigButton
-          variant="tan"
-          label="DRAFTS"
-          size="small"
-          onPress={() => navigation.navigate('Drafts')}
+          variant="primary"
+          label="AI CLINICAL ASSISTANT"
+          onPress={() => navigation.navigate("InteractiveCare", {})}
         />
       </View>
 
-      <View style={styles.bottomSpacer} />
+      <View style={styles.bottomBar}>
+        <View style={sharedStyles.divider} />
+        <View style={styles.row}>
+          <View style={styles.halfBtn}>
+            <BigButton
+              variant="neutral"
+              label="DRAFTS"
+              size="small"
+              onPress={() => navigation.navigate("Drafts")}
+            />
+          </View>
+          <View style={styles.halfBtn}>
+            <BigButton
+              variant="neutral"
+              label="HISTORY"
+              size="small"
+              onPress={() => navigation.navigate("RecentPatients")}
+            />
+          </View>
+        </View>
+      </View>
     </View>
   );
 }
@@ -63,27 +72,30 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
-    paddingHorizontal: spacing.xl,
-    justifyContent: 'center',
+    paddingHorizontal: spacing.xxl,
   },
-  topSpacer: {
-    flex: 2,
+  titleBar: {
+    paddingTop: spacing.xxxl,
+    gap: spacing.lg,
   },
   title: {
     ...typography.screenTitle,
-    textAlign: 'center',
-    fontSize: 28,
-    letterSpacing: 2,
-    marginBottom: spacing.xxl,
+    textAlign: "center",
+    fontSize: 30,
+    letterSpacing: 3,
   },
-  mainButton: {
-    marginBottom: spacing.xl,
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    gap: spacing.xxxl,
   },
-  secondaryButtons: {
+  bottomBar: {
+    gap: spacing.lg,
+    paddingBottom: spacing.xxl,
+  },
+  row: {
+    flexDirection: "row",
     gap: spacing.md,
-    marginTop: spacing.lg,
   },
-  bottomSpacer: {
-    flex: 3,
-  },
+  halfBtn: { flex: 1 },
 });

@@ -9,11 +9,8 @@ import { DataRow } from '../components/DataRow';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
-import { sharedStyles } from '../theme/styles';
 
-type RootStackParamList = {
-  TriageForm: { page: number }; ReviewData: undefined; ReviewSend: undefined;
-};
+type RootStackParamList = { TriageForm: { page: number }; ReviewData: undefined; ReviewSend: undefined };
 type NavProp = StackNavigationProp<RootStackParamList, 'ReviewData'>;
 
 const CONCERNING = ['UNCONTROLLED', 'COMPROMISED', 'UNSTABLE', 'PRESENT'];
@@ -26,15 +23,17 @@ export function ReviewDataScreen() {
   const navigation = useNavigation<NavProp>();
   const { vitals, neuro, march } = usePatientStore();
 
+  const gcsTotal = (neuro.gcsEye ?? 0) + (neuro.gcsVerbal ?? 0) + (neuro.gcsMotor ?? 0);
   const bp = vitals.bpSystolic != null && vitals.bpDiastolic != null
-    ? `${vitals.bpSystolic}/${vitals.bpDiastolic} mmHg` : 'Not set';
-  const hr = vitals.heartRate != null ? `${vitals.heartRate} bpm` : 'Not set';
-  const spo2 = vitals.oxygenSaturation != null ? `${vitals.oxygenSaturation}%` : 'Not set';
-  const temp = vitals.temperature != null ? `${vitals.temperature} °F` : 'Not set';
+    ? `${vitals.bpSystolic}/${vitals.bpDiastolic} mmHg` : '—';
+  const hr = vitals.heartRate != null ? `${vitals.heartRate} bpm` : '—';
+  const spo2 = vitals.oxygenSaturation != null ? `${vitals.oxygenSaturation}%` : '—';
+  const temp = vitals.temperatureC != null ? `${vitals.temperatureC} °C` : '—';
   const flags = Object.entries(march)
     .filter(([_, v]) => CONCERNING.includes(v as string))
     .map(([k, v]) => `${MARCH_LABELS[k] ?? k}: ${v}`)
     .join(', ') || 'None';
+  const boolVal = (v: boolean | null) => v === null ? '—' : v ? 'YES' : 'NO';
 
   return (
     <View style={styles.container}>
@@ -44,16 +43,24 @@ export function ReviewDataScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>REVIEW DATA</Text>
-        <Text style={styles.subtitle}>Review Patient Data</Text>
 
-        <SectionCard title="PATIENT DATA">
-          <DataRow label="GCS" value={neuro.gcs?.toString() ?? 'Not set'} />
+        <SectionCard title="VITALS">
+          <DataRow label="GCS" value={`${gcsTotal} (E${neuro.gcsEye ?? '?'} V${neuro.gcsVerbal ?? '?'} M${neuro.gcsMotor ?? '?'})`} />
           <DataRow label="BP" value={bp} />
           <DataRow label="HR" value={hr} />
           <DataRow label="SpO2" value={spo2} />
-          <DataRow label="Temp" value={temp} />
-          <DataRow label="Consciousness" value={neuro.consciousness ?? 'Not set'} />
-          <DataRow label="Location" value={Array.from(neuro.injuryLocation).join(', ') || 'Not set'} />
+          <DataRow label="Temp" value={temp} isLast />
+        </SectionCard>
+
+        <SectionCard title="SYMPTOMS">
+          <DataRow label="Seizure" value={boolVal(neuro.seizure)} />
+          <DataRow label="Vomiting" value={boolVal(neuro.vomiting)} />
+          <DataRow label="Head Ext. Hemorrhage" value={boolVal(neuro.headExternalHemorrhage)} />
+          <DataRow label="Suspected ICP" value={boolVal(neuro.suspectedICP)} isLast />
+        </SectionCard>
+
+        <SectionCard title="INJURY + MARCH">
+          <DataRow label="Location" value={Array.from(neuro.injuryLocation).join(', ') || '—'} />
           <DataRow label="MARCH Flags" value={flags} isLast />
         </SectionCard>
       </ScrollView>
@@ -71,46 +78,11 @@ export function ReviewDataScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  backBtn: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
-    alignSelf: 'flex-start',
-  },
-  backText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.accent,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.xl,
-    gap: spacing.xl,
-    justifyContent: 'center',
-  },
-  title: {
-    ...typography.screenTitle,
-    fontSize: 26,
-    textAlign: 'center',
-  },
-  subtitle: {
-    ...typography.label,
-    color: colors.textDim,
-    textAlign: 'center',
-    fontSize: 16,
-    marginBottom: 0,
-  },
-  footer: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-  },
-  btnWrap: {
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: colors.bg },
+  backBtn: { paddingHorizontal: spacing.xl, paddingTop: spacing.xl, paddingBottom: spacing.md, alignSelf: 'flex-start' },
+  backText: { fontSize: 16, fontWeight: '600', color: colors.accent },
+  scrollContent: { flexGrow: 1, paddingHorizontal: spacing.xl, gap: spacing.xl, justifyContent: 'center', paddingBottom: spacing.lg },
+  title: { ...typography.screenTitle, fontSize: 26, textAlign: 'center' },
+  footer: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  btnWrap: { flex: 1 },
 });

@@ -9,8 +9,8 @@ import { colors } from '../theme/colors';
 import { spacing, sizing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 
-type RootStackParamList = { Home: undefined; MARCH: undefined; MARCH2: undefined };
-type NavProp = StackNavigationProp<RootStackParamList, 'MARCH'>;
+type RootStackParamList = { MARCH: undefined; MARCH2: undefined; TriageForm: { page: number } };
+type NavProp = StackNavigationProp<RootStackParamList, 'MARCH2'>;
 
 function MarchOption({ goodLabel, badLabel, selected, onSelect }: {
   goodLabel: string; badLabel: string; selected: string | null; onSelect: (v: string) => void;
@@ -33,11 +33,11 @@ function MarchOption({ goodLabel, badLabel, selected, onSelect }: {
   );
 }
 
-export function MARCHScreen() {
+export function MARCH2Screen() {
   const navigation = useNavigation<NavProp>();
-  const { march, setMarch, saveDraftToStorage, setLastPage } = usePatientStore();
+  const { march, setMarch } = usePatientStore();
 
-  const isComplete = march.hemorrhage !== null && march.airway !== null && march.respiration !== null;
+  const isComplete = march.circulation !== null && march.hypothermia !== null;
 
   return (
     <View style={styles.container}>
@@ -47,40 +47,32 @@ export function MARCHScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>MARCH CHECK</Text>
-        <Text style={styles.subtitle}>Screen 1 of 2 — M · A · R</Text>
+        <Text style={styles.subtitle}>Screen 2 of 2 — C · H</Text>
 
-        <SectionCard title="M — MASSIVE HEMORRHAGE">
-          <MarchOption goodLabel="CONTROLLED" badLabel="UNCONTROLLED"
-            selected={march.hemorrhage} onSelect={(v) => setMarch('hemorrhage', v)} />
+        <SectionCard title="C — CIRCULATION">
+          <MarchOption goodLabel="STABLE" badLabel="UNSTABLE"
+            selected={march.circulation} onSelect={(v) => setMarch('circulation', v)} />
         </SectionCard>
 
-        <SectionCard title="A — AIRWAY">
-          <MarchOption goodLabel="PATENT" badLabel="COMPROMISED"
-            selected={march.airway} onSelect={(v) => setMarch('airway', v)} />
-        </SectionCard>
-
-        <SectionCard title="R — RESPIRATION">
-          <MarchOption goodLabel="NORMAL" badLabel="COMPROMISED"
-            selected={march.respiration} onSelect={(v) => setMarch('respiration', v)} />
+        <SectionCard title="H — HYPOTHERMIA">
+          <MarchOption goodLabel="NONE" badLabel="PRESENT"
+            selected={march.hypothermia} onSelect={(v) => setMarch('hypothermia', v)} />
         </SectionCard>
       </ScrollView>
 
       <View style={styles.footer}>
         <View style={styles.btnWrap}>
-          <BigButton variant="neutral" label="SAVE DRAFT" size="small"
-            onPress={async () => { setLastPage(0); await saveDraftToStorage(); navigation.navigate('Home'); }} />
+          <BigButton variant="neutral" label="← BACK" size="small" onPress={() => navigation.goBack()} />
         </View>
         <View style={styles.btnWrap}>
           <BigButton variant="go" label="NEXT →" size="small"
             disabled={!isComplete}
-            onPress={() => navigation.navigate('MARCH2')} />
+            onPress={() => navigation.navigate('TriageForm', { page: 1 })} />
         </View>
       </View>
     </View>
   );
 }
-
-export const MarchScreen = MARCHScreen;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },

@@ -12,15 +12,12 @@ import { spacing, sizing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import { sharedStyles } from '../theme/styles';
 
-type RootStackParamList = { Home: undefined; RecentPatients: undefined };
-type NavProp = StackNavigationProp<RootStackParamList, 'RecentPatients'>;
-
-const riskBadgeColor: Record<string, string> = {
-  LOW: colors.green,
-  MODERATE: colors.yellow,
-  HIGH: colors.orange,
-  CRITICAL: colors.red,
+type RootStackParamList = {
+  Home: undefined;
+  RecentPatients: undefined;
+  InteractiveCare: { requestId?: string };
 };
+type NavProp = StackNavigationProp<RootStackParamList, 'RecentPatients'>;
 
 export function RecentRequestsScreen() {
   const navigation = useNavigation<NavProp>();
@@ -67,6 +64,7 @@ export function RecentRequestsScreen() {
               isExpanded={expanded === req.id}
               onToggle={() => setExpanded(expanded === req.id ? null : req.id)}
               onDelete={() => handleDelete(req.id)}
+              onChat={() => navigation.navigate('InteractiveCare', { requestId: req.id })}
             />
           ))}
         </ScrollView>
@@ -75,13 +73,13 @@ export function RecentRequestsScreen() {
   );
 }
 
-function RequestCard({ request, isExpanded, onToggle, onDelete }: {
+function RequestCard({ request, isExpanded, onToggle, onDelete, onChat }: {
   request: RequestRecord;
   isExpanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  onChat: () => void;
 }) {
-  const badgeColor = riskBadgeColor[request.riskLevel] ?? colors.textDim;
   let vitals: any = {};
   try { vitals = JSON.parse(request.vitalsSnapshot); } catch {}
 
@@ -90,35 +88,30 @@ function RequestCard({ request, isExpanded, onToggle, onDelete }: {
       <Pressable onPress={onToggle} style={styles.cardHeader}>
         <Text style={styles.cardPatient}>{request.patientId || '—'}</Text>
         <Text style={styles.cardMission}>{request.missionId || '—'}</Text>
-        <Text style={[styles.riskBadge, { color: badgeColor }]}>
-          {request.riskLevel} {isExpanded ? '▲' : '▼'}
-        </Text>
+        <Text style={styles.cardChevron}>{isExpanded ? '▲' : '▼'}</Text>
       </Pressable>
 
       <View style={styles.cardSubRow}>
         <Text style={styles.cardMeta}>Sent {timeAgo(request.sentAt)}</Text>
-        <TouchableOpacity style={styles.deleteBtn} onPress={onDelete} activeOpacity={0.75}>
-          <Text style={styles.deleteText}>DELETE</Text>
-        </TouchableOpacity>
+        <View style={styles.cardActions}>
+          <TouchableOpacity style={styles.chatBtn} onPress={onChat} activeOpacity={0.75}>
+            <Text style={styles.chatBtnText}>CONSULT AI</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.deleteBtn} onPress={onDelete} activeOpacity={0.75}>
+            <Text style={styles.deleteText}>DELETE</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {isExpanded && (
         <View style={styles.expandedContent}>
           <View style={sharedStyles.divider} />
-          <DataRow label="Risk" value={request.riskProbability || request.riskLevel} />
-          <DataRow
-            label="GCS / BP / HR"
-            value={`${vitals.bpSystolic ?? '—'}/${vitals.bpDiastolic ?? '—'} mmHg  HR: ${vitals.heartRate ?? '—'}`}
-          />
-          <DataRow
-            label="SpO2 / Temp"
-            value={`${vitals.oxygenSaturation ?? '—'}%  ${vitals.temperature ?? '—'}°F`}
-          />
+          <DataRow label="BP / HR" value={`${vitals.bpSystolic ?? '—'}/${vitals.bpDiastolic ?? '—'} mmHg  HR: ${vitals.heartRate ?? '—'}`} />
+          <DataRow label="SpO2 / Temp" value={`${vitals.oxygenSaturation ?? '—'}%  ${vitals.temperatureC ?? '—'}°C`} />
           <DataRow label="Shootdown" value={request.shootdownRisk != null ? `${request.shootdownRisk}%` : '—'} />
           {request.marchFlags.length > 0 && (
             <AlertBanner type="critical" message={`MARCH: ${request.marchFlags.join(', ')}`} />
           )}
-          <DataRow label="Kit" value={request.payloadItems.join(', ') || 'None'} />
           <View style={sharedStyles.divider} />
           <Text style={styles.payloadLabel}>Squirt Payload:</Text>
           <View style={styles.payloadBlock}>
@@ -141,93 +134,25 @@ function timeAgo(ms: number): string {
 }
 
 const styles = StyleSheet.create({
-  topBar: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-  },
-  backText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.accent,
-  },
-  title: {
-    ...typography.screenTitle,
-    paddingHorizontal: spacing.lg,
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    ...typography.label,
-    color: colors.textDim,
-  },
-  list: {
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: sizing.borderRadius,
-    padding: sizing.cardPadding,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  cardPatient: {
-    ...typography.dataVal,
-    fontWeight: '700',
-    flex: 1,
-  },
-  cardMission: {
-    ...typography.dataVal,
-    color: colors.textDim,
-  },
-  riskBadge: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  cardSubRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: spacing.sm,
-  },
-  cardMeta: {
-    ...typography.label,
-    color: colors.textDim,
-    marginBottom: 0,
-  },
-  deleteBtn: {
-    backgroundColor: colors.redDim,
-    borderRadius: sizing.borderRadiusSm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  deleteText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.red,
-  },
-  expandedContent: {
-    marginTop: spacing.md,
-    gap: spacing.sm,
-  },
-  payloadLabel: {
-    ...typography.label,
-    color: colors.textDim,
-    marginBottom: 0,
-  },
-  payloadBlock: {
-    backgroundColor: colors.surface2,
-    borderRadius: sizing.borderRadiusSm,
-    padding: spacing.sm,
-  },
+  topBar: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  backText: { fontSize: 14, fontWeight: '600', color: colors.accent },
+  title: { ...typography.screenTitle, paddingHorizontal: spacing.lg, marginTop: spacing.md, marginBottom: spacing.md },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyText: { ...typography.label, color: colors.textDim },
+  list: { padding: spacing.lg, gap: spacing.md },
+  card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: sizing.borderRadius, padding: sizing.cardPadding },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  cardPatient: { ...typography.dataVal, fontWeight: '700', flex: 1 },
+  cardMission: { ...typography.dataVal, color: colors.textDim },
+  cardChevron: { fontSize: 14, color: colors.textDim },
+  cardSubRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },
+  cardMeta: { ...typography.label, color: colors.textDim, marginBottom: 0 },
+  cardActions: { flexDirection: 'row', gap: spacing.sm },
+  chatBtn: { backgroundColor: colors.accentDim, borderRadius: sizing.borderRadiusSm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderWidth: 1, borderColor: colors.accent },
+  chatBtnText: { fontSize: 12, fontWeight: '600', color: colors.accent },
+  deleteBtn: { backgroundColor: colors.redDim, borderRadius: sizing.borderRadiusSm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
+  deleteText: { fontSize: 12, fontWeight: '600', color: colors.red },
+  expandedContent: { marginTop: spacing.md, gap: spacing.sm },
+  payloadLabel: { ...typography.label, color: colors.textDim, marginBottom: 0 },
+  payloadBlock: { backgroundColor: colors.surface2, borderRadius: sizing.borderRadiusSm, padding: spacing.sm },
 });

@@ -9,6 +9,7 @@ import { HomeScreen } from "./src/screens/HomeScreen";
 import { AssessmentModeScreen } from "./src/screens/AssessmentModeScreen";
 import { PatientInfoScreen } from "./src/screens/PatientInfoScreen";
 import { MARCHScreen } from "./src/screens/MARCHScreen";
+import { MARCH2Screen } from "./src/screens/MARCH2Screen";
 import { TriageFormScreen } from "./src/screens/TriageFormScreen";
 import { ReviewDataScreen } from "./src/screens/ReviewDataScreen";
 import { ReviewSendScreen } from "./src/screens/ReviewSendScreen";
@@ -23,6 +24,7 @@ export type RootStackParamList = {
   AssessmentMode: undefined;
   PatientInfo: undefined;
   MARCH: undefined;
+  MARCH2: undefined;
   TriageForm: { page: number };
   ReviewData: undefined;
   ReviewSend: undefined;
@@ -68,6 +70,7 @@ function App(): React.JSX.Element {
           />
           <Stack.Screen name="PatientInfo" component={PatientInfoScreen} />
           <Stack.Screen name="MARCH" component={MARCHScreen} />
+          <Stack.Screen name="MARCH2" component={MARCH2Screen} />
           <Stack.Screen name="TriageForm" component={TriageFormScreen} />
           <Stack.Screen name="ReviewData" component={ReviewDataScreen} />
           <Stack.Screen name="ReviewSend" component={ReviewSendScreen} />
