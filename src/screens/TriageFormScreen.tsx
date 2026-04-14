@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -6,20 +6,25 @@ import { RouteProp } from '@react-navigation/native';
 import { usePatientStore } from '../store/usePatientStore';
 import { BigButton } from '../components/BigButton';
 import { AlertBanner } from '../components/AlertBanner';
+import { GuidedVoiceBar } from '../components/GuidedVoiceBar';
 import { colors } from '../theme/colors';
 import { spacing, sizing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import { sharedStyles } from '../theme/styles';
+import { getTriageStepId } from '../assessment/definitions';
+import { useGuidedVoiceStep } from '../hooks/useGuidedVoiceStep';
+import { useAutoAdvance } from '../hooks/useAutoAdvance';
 
 type RootStackParamList = {
-  MARCH2: undefined; TriageForm: { page: number }; ReviewData: undefined; Home: undefined;
+  MARCH2: undefined;
+  TriageForm: { page: number };
+  ReviewData: undefined;
+  Home: undefined;
 };
 type NavProp = StackNavigationProp<RootStackParamList, 'TriageForm'>;
 type RoutePropType = RouteProp<RootStackParamList, 'TriageForm'>;
 
 const TOTAL_PAGES = 8;
-
-/* ── GCS option data ─────────────────────────────────────────── */
 
 const GCS_EYE = [
   { v: 4, label: '4', color: colors.green },
@@ -57,7 +62,8 @@ function GCSPage({ title, options, selected, onSelect }: {
           <TouchableOpacity
             key={opt.v}
             style={[styles.gcsOption, { backgroundColor: opt.color }, selected === opt.v && styles.gcsSelected]}
-            onPress={() => onSelect(opt.v)} activeOpacity={0.75}
+            onPress={() => onSelect(opt.v)}
+            activeOpacity={0.75}
           >
             <Text style={styles.gcsText}>{opt.label}</Text>
           </TouchableOpacity>
@@ -67,29 +73,33 @@ function GCSPage({ title, options, selected, onSelect }: {
   );
 }
 
-/* ── Symptom row ─────────────────────────────────────────────── */
-
 function SymptomRow({ label, value, onSelect }: {
-  label: string; value: boolean | null; onSelect: (v: boolean) => void;
+  label: string;
+  value: boolean | null;
+  onSelect: (v: boolean) => void;
 }) {
   return (
     <View style={styles.symptomRow}>
       <Text style={styles.symptomLabel}>{label}</Text>
       <View style={styles.symptomBtns}>
-        <TouchableOpacity style={[styles.symptomBtn, value === true ? styles.symYesOn : styles.symYesOff]}
-          onPress={() => onSelect(true)} activeOpacity={0.75}>
+        <TouchableOpacity
+          style={[styles.symptomBtn, value === true ? styles.symYesOn : styles.symYesOff]}
+          onPress={() => onSelect(true)}
+          activeOpacity={0.75}
+        >
           <Text style={styles.symptomBtnText}>YES</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.symptomBtn, value === false ? styles.symNoOn : styles.symNoOff]}
-          onPress={() => onSelect(false)} activeOpacity={0.75}>
+        <TouchableOpacity
+          style={[styles.symptomBtn, value === false ? styles.symNoOn : styles.symNoOff]}
+          onPress={() => onSelect(false)}
+          activeOpacity={0.75}
+        >
           <Text style={styles.symptomBtnText}>NO</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
-
-/* ── Main screen ─────────────────────────────────────────────── */
 
 export function TriageFormScreen() {
   const navigation = useNavigation<NavProp>();
@@ -99,33 +109,58 @@ export function TriageFormScreen() {
   const [tempText, setTempText] = useState('');
 
   const {
-    patientId, missionId, vitals, neuro, shootdownRisk,
-    setVitals, setNeuro, toggleInjuryLocation, setShootdownRisk,
-    saveDraftToStorage, setLastPage,
+    patientId,
+    missionId,
+    march,
+    vitals,
+    neuro,
+    shootdownRisk,
+    voice,
+    setVitals,
+    setNeuro,
+    toggleInjuryLocation,
+    setShootdownRisk,
+    saveDraftToStorage,
+    setLastPage,
+    setVoiceEnabled,
   } = usePatientStore();
 
-  React.useEffect(() => { setLastPage(currentPage); }, [currentPage, setLastPage]);
+  useEffect(() => {
+    if (route.params?.page && route.params.page !== currentPage) {
+      setCurrentPage(route.params.page);
+    }
+  }, [currentPage, route.params?.page]);
+
+  useEffect(() => {
+    setLastPage(currentPage);
+  }, [currentPage, setLastPage]);
 
   const gcsTotal = (neuro.gcsEye ?? 0) + (neuro.gcsVerbal ?? 0) + (neuro.gcsMotor ?? 0);
-
-  /* ── Validation ─────────────────────────────────────────────── */
+  const currentStepId = useMemo(() => getTriageStepId(currentPage), [currentPage]);
 
   const isPageComplete = useCallback((): boolean => {
     switch (currentPage) {
-      case 1: return vitals.bpSystolic !== null && vitals.bpDiastolic !== null && vitals.heartRate !== null;
-      case 2: return vitals.oxygenSaturation !== null && vitals.temperatureC !== null;
-      case 3: return neuro.gcsEye !== null;
-      case 4: return neuro.gcsVerbal !== null;
-      case 5: return neuro.gcsMotor !== null;
-      case 6: return neuro.seizure !== null && neuro.vomiting !== null &&
-        neuro.headExternalHemorrhage !== null && neuro.suspectedICP !== null;
-      case 7: return neuro.injuryLocation.size > 0;
-      case 8: return shootdownRisk !== null;
-      default: return true;
+      case 1:
+        return vitals.bpSystolic !== null && vitals.bpDiastolic !== null && vitals.heartRate !== null;
+      case 2:
+        return vitals.oxygenSaturation !== null && vitals.temperatureC !== null;
+      case 3:
+        return neuro.gcsEye !== null;
+      case 4:
+        return neuro.gcsVerbal !== null;
+      case 5:
+        return neuro.gcsMotor !== null;
+      case 6:
+        return neuro.seizure !== null && neuro.vomiting !== null &&
+          neuro.headExternalHemorrhage !== null && neuro.suspectedICP !== null;
+      case 7:
+        return neuro.injuryLocation.size > 0;
+      case 8:
+        return shootdownRisk !== null;
+      default:
+        return true;
     }
   }, [currentPage, vitals, neuro, shootdownRisk]);
-
-  /* ── Handlers ───────────────────────────────────────────────── */
 
   const handleSaveDraft = useCallback(async () => {
     setLastPage(currentPage);
@@ -135,31 +170,90 @@ export function TriageFormScreen() {
   }, [currentPage, saveDraftToStorage, setLastPage]);
 
   const handleBack = useCallback(() => {
-    if (currentPage > 1) setCurrentPage(currentPage - 1);
-    else navigation.goBack();
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    } else {
+      navigation.goBack();
+    }
   }, [currentPage, navigation]);
 
   const handleNext = useCallback(() => {
-    if (currentPage < TOTAL_PAGES) setCurrentPage(currentPage + 1);
-    else navigation.navigate('ReviewData');
+    if (currentPage < TOTAL_PAGES) {
+      setCurrentPage(currentPage + 1);
+    } else {
+      navigation.navigate('ReviewData');
+    }
   }, [currentPage, navigation]);
 
-  const nextLabel = currentPage === TOTAL_PAGES ? 'SEND SQUIRT' : 'NEXT →';
+  const { active, countdownMs, cancel } = useAutoAdvance({
+    enabled: true,
+    isComplete: isPageComplete(),
+    onAdvance: handleNext,
+    resetKey: currentPage,
+  });
 
-  /* ── Location helper ────────────────────────────────────────── */
+  const { statusText, isSupported, listen } = useGuidedVoiceStep({
+    stepId: currentStepId,
+    enabled: voice.enabled,
+    snapshot: {
+      patientId,
+      missionId,
+      march,
+      vitals,
+      neuro,
+      shootdownRisk,
+    },
+    applyValues: (values) => {
+      Object.entries(values).forEach(([key, value]) => {
+        if (key === 'bpSystolic' || key === 'bpDiastolic' || key === 'heartRate' || key === 'oxygenSaturation' || key === 'temperatureC') {
+          setVitals(key, value);
+          return;
+        }
+        if (key === 'shootdownRisk') {
+          setShootdownRisk(value as 0 | 10 | 25 | 50 | 75 | 90);
+          return;
+        }
+        if (key === 'injuryLocation' && value instanceof Set) {
+          setNeuro('injuryLocation', value);
+          return;
+        }
+        if (
+          key === 'gcsEye' || key === 'gcsVerbal' || key === 'gcsMotor' ||
+          key === 'seizure' || key === 'vomiting' || key === 'headExternalHemorrhage' ||
+          key === 'suspectedICP' || key === 'notes'
+        ) {
+          setNeuro(key, value);
+        }
+      });
+    },
+    onCommand: (command) => {
+      if (command === 'back') {
+        cancel();
+        handleBack();
+      }
+      if (command === 'next' && isPageComplete()) {
+        cancel();
+        handleNext();
+      }
+      if (command === 'stop') {
+        setVoiceEnabled(false);
+      }
+    },
+  });
+
+  const nextLabel = currentPage === TOTAL_PAGES ? 'REVIEW →' : 'NEXT →';
 
   const locBtn = (label: string, value: 'FRONT' | 'BACK' | 'LEFT' | 'RIGHT' | 'TOP') => {
     const sel = neuro.injuryLocation.has(value);
     return (
       <TouchableOpacity key={value}
         style={[styles.locationBtn, sel ? styles.locSelected : styles.locUnselected]}
-        onPress={() => toggleInjuryLocation(value)} activeOpacity={0.75}>
+        onPress={() => toggleInjuryLocation(value)}
+        activeOpacity={0.75}>
         <Text style={[typography.segmentLabel, sel ? styles.locTextOn : styles.locTextOff]}>{label}</Text>
       </TouchableOpacity>
     );
   };
-
-  /* ── Pages ──────────────────────────────────────────────────── */
 
   const renderPage = () => {
     switch (currentPage) {
@@ -169,80 +263,113 @@ export function TriageFormScreen() {
             <View>
               <Text style={typography.label}>BLOOD PRESSURE:</Text>
               <View style={styles.row}>
-                <TextInput style={[styles.input, styles.flex1]} value={vitals.bpSystolic?.toString() ?? ''}
-                  onChangeText={(t) => { const n = parseInt(t, 10); setVitals('bpSystolic', isNaN(n) ? null : n); }}
-                  keyboardType="numeric" placeholder="SYS" placeholderTextColor={colors.textDim} />
+                <TextInput
+                  style={[styles.input, styles.flex1]}
+                  value={vitals.bpSystolic?.toString() ?? ''}
+                  onChangeText={(text) => {
+                    const n = parseInt(text, 10);
+                    setVitals('bpSystolic', Number.isNaN(n) ? null : n);
+                  }}
+                  keyboardType="numeric"
+                  placeholder="SYS"
+                  placeholderTextColor={colors.textDim}
+                />
                 <Text style={styles.unit}>/</Text>
-                <TextInput style={[styles.input, styles.flex1]} value={vitals.bpDiastolic?.toString() ?? ''}
-                  onChangeText={(t) => { const n = parseInt(t, 10); setVitals('bpDiastolic', isNaN(n) ? null : n); }}
-                  keyboardType="numeric" placeholder="DIA" placeholderTextColor={colors.textDim} />
+                <TextInput
+                  style={[styles.input, styles.flex1]}
+                  value={vitals.bpDiastolic?.toString() ?? ''}
+                  onChangeText={(text) => {
+                    const n = parseInt(text, 10);
+                    setVitals('bpDiastolic', Number.isNaN(n) ? null : n);
+                  }}
+                  keyboardType="numeric"
+                  placeholder="DIA"
+                  placeholderTextColor={colors.textDim}
+                />
                 <Text style={styles.unit}>mmHg</Text>
               </View>
             </View>
             <View>
               <Text style={typography.label}>HEART RATE:</Text>
               <View style={styles.row}>
-                <TextInput style={[styles.input, styles.flex1]} value={vitals.heartRate?.toString() ?? ''}
-                  onChangeText={(t) => { const n = parseInt(t, 10); setVitals('heartRate', isNaN(n) ? null : n); }}
-                  keyboardType="numeric" placeholder="BPM" placeholderTextColor={colors.textDim} />
+                <TextInput
+                  style={[styles.input, styles.flex1]}
+                  value={vitals.heartRate?.toString() ?? ''}
+                  onChangeText={(text) => {
+                    const n = parseInt(text, 10);
+                    setVitals('heartRate', Number.isNaN(n) ? null : n);
+                  }}
+                  keyboardType="numeric"
+                  placeholder="BPM"
+                  placeholderTextColor={colors.textDim}
+                />
                 <Text style={styles.unit}>bpm</Text>
               </View>
             </View>
           </>
         );
-
       case 2:
         return (
           <>
             <View>
               <Text style={typography.label}>OXYGEN SATURATION:</Text>
               <View style={styles.row}>
-                <TextInput style={[styles.input, styles.flex1]} value={vitals.oxygenSaturation?.toString() ?? ''}
-                  onChangeText={(t) => { const n = parseInt(t, 10); setVitals('oxygenSaturation', isNaN(n) ? null : n); }}
-                  keyboardType="numeric" placeholder="SpO2" placeholderTextColor={colors.textDim} />
+                <TextInput
+                  style={[styles.input, styles.flex1]}
+                  value={vitals.oxygenSaturation?.toString() ?? ''}
+                  onChangeText={(text) => {
+                    const n = parseInt(text, 10);
+                    setVitals('oxygenSaturation', Number.isNaN(n) ? null : n);
+                  }}
+                  keyboardType="numeric"
+                  placeholder="SpO2"
+                  placeholderTextColor={colors.textDim}
+                />
                 <Text style={styles.unit}>%</Text>
               </View>
             </View>
             <View>
               <Text style={typography.label}>TEMPERATURE:</Text>
               <View style={styles.row}>
-                <TextInput style={[styles.input, styles.flex1]}
+                <TextInput
+                  style={[styles.input, styles.flex1]}
                   value={tempText !== '' ? tempText : vitals.temperatureC?.toString() ?? ''}
-                  onChangeText={(t) => {
-                    const f = t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
-                    setTempText(f);
-                    const n = parseFloat(f);
-                    if (!isNaN(n)) setVitals('temperatureC', n);
-                    else if (f === '') setVitals('temperatureC', null);
+                  onChangeText={(text) => {
+                    const filtered = text.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                    setTempText(filtered);
+                    const n = parseFloat(filtered);
+                    if (!Number.isNaN(n)) {
+                      setVitals('temperatureC', n);
+                    } else if (filtered === '') {
+                      setVitals('temperatureC', null);
+                    }
                   }}
                   onBlur={() => setTempText('')}
-                  keyboardType="decimal-pad" placeholder="Temp" placeholderTextColor={colors.textDim} />
+                  keyboardType="decimal-pad"
+                  placeholder="Temp"
+                  placeholderTextColor={colors.textDim}
+                />
                 <Text style={styles.unit}>°C</Text>
               </View>
             </View>
           </>
         );
-
       case 3:
-        return <GCSPage title="GCS: EYE OPENING" options={GCS_EYE} selected={neuro.gcsEye} onSelect={(v) => setNeuro('gcsEye', v)} />;
-
+        return <GCSPage title="GCS: EYE OPENING" options={GCS_EYE} selected={neuro.gcsEye} onSelect={(value) => setNeuro('gcsEye', value)} />;
       case 4:
-        return <GCSPage title="GCS: VERBAL RESPONSE" options={GCS_VERBAL} selected={neuro.gcsVerbal} onSelect={(v) => setNeuro('gcsVerbal', v)} />;
-
+        return <GCSPage title="GCS: VERBAL RESPONSE" options={GCS_VERBAL} selected={neuro.gcsVerbal} onSelect={(value) => setNeuro('gcsVerbal', value)} />;
       case 5:
-        return <GCSPage title="GCS: MOTOR RESPONSE" options={GCS_MOTOR} selected={neuro.gcsMotor} onSelect={(v) => setNeuro('gcsMotor', v)} />;
-
+        return <GCSPage title="GCS: MOTOR RESPONSE" options={GCS_MOTOR} selected={neuro.gcsMotor} onSelect={(value) => setNeuro('gcsMotor', value)} />;
       case 6:
         return (
           <>
             <Text style={styles.pageTitle}>SYMPTOMS</Text>
-            <SymptomRow label="Seizure" value={neuro.seizure} onSelect={(v) => setNeuro('seizure', v)} />
-            <SymptomRow label="Vomiting" value={neuro.vomiting} onSelect={(v) => setNeuro('vomiting', v)} />
-            <SymptomRow label="Head External Hemorrhage" value={neuro.headExternalHemorrhage} onSelect={(v) => setNeuro('headExternalHemorrhage', v)} />
-            <SymptomRow label="Suspected ICP" value={neuro.suspectedICP} onSelect={(v) => setNeuro('suspectedICP', v)} />
+            <SymptomRow label="Seizure" value={neuro.seizure} onSelect={(value) => setNeuro('seizure', value)} />
+            <SymptomRow label="Vomiting" value={neuro.vomiting} onSelect={(value) => setNeuro('vomiting', value)} />
+            <SymptomRow label="Head External Hemorrhage" value={neuro.headExternalHemorrhage} onSelect={(value) => setNeuro('headExternalHemorrhage', value)} />
+            <SymptomRow label="Suspected ICP" value={neuro.suspectedICP} onSelect={(value) => setNeuro('suspectedICP', value)} />
           </>
         );
-
       case 7:
         return (
           <>
@@ -253,36 +380,41 @@ export function TriageFormScreen() {
               <View style={styles.locCenter}>{locBtn('TOP', 'TOP')}</View>
             </View>
             <Text style={typography.label}>NOTES:</Text>
-            <TextInput style={styles.notesInput} value={neuro.notes}
-              onChangeText={(t) => setNeuro('notes', t)}
-              multiline placeholder="Additional notes..." placeholderTextColor={colors.textDim} />
+            <TextInput
+              style={styles.notesInput}
+              value={neuro.notes}
+              onChangeText={(text) => setNeuro('notes', text)}
+              multiline
+              placeholder="Additional notes..."
+              placeholderTextColor={colors.textDim}
+            />
           </>
         );
-
       case 8: {
-        const VALS: Array<0 | 10 | 25 | 50 | 75 | 90> = [0, 10, 25, 50, 75, 90];
-        const rc = (v: number) => v <= 10 ? styles.bgGreen : v <= 50 ? styles.bgYellow : styles.bgRed;
+        const values: Array<0 | 10 | 25 | 50 | 75 | 90> = [0, 10, 25, 50, 75, 90];
+        const riskColor = (value: number) => value <= 10 ? styles.bgGreen : value <= 50 ? styles.bgYellow : styles.bgRed;
         return (
           <>
             <Text style={styles.pageTitle}>DRONE SHOOTDOWN RISK</Text>
             <View style={styles.riskGrid}>
-              {VALS.map((v) => (
-                <TouchableOpacity key={v}
-                  style={[styles.riskBtn, rc(v), shootdownRisk === v && styles.selectedBorder]}
-                  onPress={() => setShootdownRisk(v)} activeOpacity={0.75}>
-                  <Text style={styles.riskBtnText}>{v}%</Text>
+              {values.map((value) => (
+                <TouchableOpacity
+                  key={value}
+                  style={[styles.riskBtn, riskColor(value), shootdownRisk === value && styles.selectedBorder]}
+                  onPress={() => setShootdownRisk(value)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={styles.riskBtnText}>{value}%</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </>
         );
       }
-
-      default: return null;
+      default:
+        return null;
     }
   };
-
-  /* ── Render ─────────────────────────────────────────────────── */
 
   return (
     <View style={sharedStyles.screen}>
@@ -310,13 +442,34 @@ export function TriageFormScreen() {
         </View>
       )}
 
+      <GuidedVoiceBar
+        active={voice.enabled}
+        supported={isSupported}
+        statusText={active && countdownMs != null
+          ? `Page complete. Auto-advancing in ${(countdownMs / 1000).toFixed(1)} seconds.`
+          : statusText || 'Guided voice can fill the current missing field while touch input stays available.'}
+        onMicPress={listen}
+        onToggleVoice={() => setVoiceEnabled(!voice.enabled)}
+      />
+
       <View style={styles.footer}>
         <View style={styles.footerBtn}>
-          <BigButton variant="neutral" label="SAVE DRAFT" size="small" onPress={handleSaveDraft} />
+          <BigButton variant="neutral" label="SAVE DRAFT" size="small" onPress={async () => {
+            cancel();
+            await handleSaveDraft();
+          }} />
         </View>
         <View style={styles.footerBtn}>
-          <BigButton variant="go" label={nextLabel} size="small"
-            disabled={!isPageComplete()} onPress={handleNext} />
+          <BigButton
+            variant="go"
+            label={active ? 'NEXTING…' : nextLabel}
+            size="small"
+            disabled={!isPageComplete()}
+            onPress={() => {
+              cancel();
+              handleNext();
+            }}
+          />
         </View>
       </View>
 
@@ -324,8 +477,6 @@ export function TriageFormScreen() {
     </View>
   );
 }
-
-/* ── Styles ──────────────────────────────────────────────────── */
 
 const styles = StyleSheet.create({
   pageContent: { flexGrow: 1, paddingHorizontal: spacing.xl, paddingVertical: spacing.xxl, gap: spacing.xxl, justifyContent: 'center' },

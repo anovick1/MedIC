@@ -22,17 +22,22 @@ function buildPatientContext(
   march: MarchData,
   shootdownRisk: number | null,
 ): string {
+  const gcsTotal = (neuro.gcsEye ?? 0) + (neuro.gcsVerbal ?? 0) + (neuro.gcsMotor ?? 0);
   const marchFlags = Object.entries(march)
     .filter(([_, v]) => v != null)
     .map(([k, v]) => `${k}: ${v}`)
     .join(", ");
   return [
-    `GCS: ${neuro.gcs ?? "unknown"}`,
+    `GCS: ${gcsTotal || "unknown"} (E${neuro.gcsEye ?? "?"} V${neuro.gcsVerbal ?? "?"} M${neuro.gcsMotor ?? "?"})`,
     `Consciousness: ${neuro.consciousness ?? "unknown"}`,
     `BP: ${vitals.bpSystolic ?? "?"}/${vitals.bpDiastolic ?? "?"} mmHg`,
     `HR: ${vitals.heartRate ?? "unknown"} bpm`,
     `SpO2: ${vitals.oxygenSaturation ?? "unknown"}%`,
-    `Temp: ${vitals.temperature ?? "unknown"} °F`,
+    `Temp: ${vitals.temperatureC ?? "unknown"} °C`,
+    `Seizure: ${neuro.seizure == null ? "unknown" : neuro.seizure ? "yes" : "no"}`,
+    `Vomiting: ${neuro.vomiting == null ? "unknown" : neuro.vomiting ? "yes" : "no"}`,
+    `Head External Hemorrhage: ${neuro.headExternalHemorrhage == null ? "unknown" : neuro.headExternalHemorrhage ? "yes" : "no"}`,
+    `Suspected ICP: ${neuro.suspectedICP == null ? "unknown" : neuro.suspectedICP ? "yes" : "no"}`,
     `Injury Location: ${Array.from(neuro.injuryLocation).join(", ") || "unknown"}`,
     `MARCH: ${marchFlags || "all clear"}`,
     `Shootdown Risk: ${shootdownRisk ?? "unknown"}%`,

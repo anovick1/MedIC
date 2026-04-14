@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { usePatientStore } from '../store/usePatientStore';
 import { BigButton } from '../components/BigButton';
+import { GuidedVoiceBar } from '../components/GuidedVoiceBar';
 import { SectionCard } from '../components/SectionCard';
+import { useAutoAdvance } from '../hooks/useAutoAdvance';
+import { useGuidedVoiceStep } from '../hooks/useGuidedVoiceStep';
 import { colors } from '../theme/colors';
 import { spacing, sizing } from '../theme/spacing';
 import { typography } from '../theme/typography';
@@ -13,19 +16,24 @@ type RootStackParamList = { Home: undefined; MARCH: undefined; MARCH2: undefined
 type NavProp = StackNavigationProp<RootStackParamList, 'MARCH'>;
 
 function MarchOption({ goodLabel, badLabel, selected, onSelect }: {
-  goodLabel: string; badLabel: string; selected: string | null; onSelect: (v: string) => void;
+  goodLabel: string;
+  badLabel: string;
+  selected: string | null;
+  onSelect: (v: string) => void;
 }) {
   return (
     <View style={styles.optionRow}>
       <TouchableOpacity
         style={[styles.optionBtn, selected === goodLabel ? styles.optionGreenActive : styles.optionGreenInactive]}
-        onPress={() => onSelect(goodLabel)} activeOpacity={0.75}
+        onPress={() => onSelect(goodLabel)}
+        activeOpacity={0.75}
       >
         <Text style={styles.optionText}>{goodLabel}</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={[styles.optionBtn, selected === badLabel ? styles.optionRedActive : styles.optionRedInactive]}
-        onPress={() => onSelect(badLabel)} activeOpacity={0.75}
+        onPress={() => onSelect(badLabel)}
+        activeOpacity={0.75}
       >
         <Text style={styles.optionText}>{badLabel}</Text>
       </TouchableOpacity>
@@ -35,9 +43,60 @@ function MarchOption({ goodLabel, badLabel, selected, onSelect }: {
 
 export function MARCHScreen() {
   const navigation = useNavigation<NavProp>();
-  const { march, setMarch, saveDraftToStorage, setLastPage } = usePatientStore();
+  const {
+    patientId,
+    missionId,
+    march,
+    vitals,
+    neuro,
+    shootdownRisk,
+    voice,
+    setMarch,
+    saveDraftToStorage,
+    setLastPage,
+    setVoiceEnabled,
+  } = usePatientStore();
 
   const isComplete = march.hemorrhage !== null && march.airway !== null && march.respiration !== null;
+  const handleNext = useCallback(() => navigation.navigate('MARCH2'), [navigation]);
+
+  const { active, countdownMs, cancel } = useAutoAdvance({
+    enabled: true,
+    isComplete,
+    onAdvance: handleNext,
+  });
+
+  const { statusText, isSupported, listen } = useGuidedVoiceStep({
+    stepId: 'march-1',
+    enabled: voice.enabled,
+    snapshot: {
+      patientId,
+      missionId,
+      march,
+      vitals,
+      neuro,
+      shootdownRisk,
+    },
+    applyValues: (values) => {
+      (Object.entries(values) as Array<[keyof typeof values, unknown]>).forEach(([key, value]) => {
+        if (key === 'hemorrhage' || key === 'airway' || key === 'respiration') {
+          setMarch(key, value);
+        }
+      });
+    },
+    onCommand: (command) => {
+      if (command === 'back') {
+        navigation.goBack();
+      }
+      if (command === 'next' && isComplete) {
+        cancel();
+        handleNext();
+      }
+      if (command === 'stop') {
+        setVoiceEnabled(false);
+      }
+    },
+  });
 
   return (
     <View style={styles.container}>
@@ -51,29 +110,47 @@ export function MARCHScreen() {
 
         <SectionCard title="M — MASSIVE HEMORRHAGE">
           <MarchOption goodLabel="CONTROLLED" badLabel="UNCONTROLLED"
-            selected={march.hemorrhage} onSelect={(v) => setMarch('hemorrhage', v)} />
+            selected={march.hemorrhage} onSelect={(value) => setMarch('hemorrhage', value)} />
         </SectionCard>
 
         <SectionCard title="A — AIRWAY">
           <MarchOption goodLabel="PATENT" badLabel="COMPROMISED"
-            selected={march.airway} onSelect={(v) => setMarch('airway', v)} />
+            selected={march.airway} onSelect={(value) => setMarch('airway', value)} />
         </SectionCard>
 
         <SectionCard title="R — RESPIRATION">
           <MarchOption goodLabel="NORMAL" badLabel="COMPROMISED"
-            selected={march.respiration} onSelect={(v) => setMarch('respiration', v)} />
+            selected={march.respiration} onSelect={(value) => setMarch('respiration', value)} />
         </SectionCard>
       </ScrollView>
+
+      <GuidedVoiceBar
+        active={voice.enabled}
+        supported={isSupported}
+        statusText={active && countdownMs != null
+          ? `MARCH complete. Auto-advancing in ${(countdownMs / 1000).toFixed(1)} seconds.`
+          : statusText || 'Answer by touch or tap the mic for guided capture.'}
+        onMicPress={listen}
+        onToggleVoice={() => setVoiceEnabled(!voice.enabled)}
+      />
 
       <View style={styles.footer}>
         <View style={styles.btnWrap}>
           <BigButton variant="neutral" label="SAVE DRAFT" size="small"
-            onPress={async () => { setLastPage(0); await saveDraftToStorage(); navigation.navigate('Home'); }} />
+            onPress={async () => {
+              cancel();
+              setLastPage(0);
+              await saveDraftToStorage();
+              navigation.navigate('Home');
+            }} />
         </View>
         <View style={styles.btnWrap}>
-          <BigButton variant="go" label="NEXT →" size="small"
+          <BigButton variant="go" label={active ? 'NEXTING…' : 'NEXT →'} size="small"
             disabled={!isComplete}
-            onPress={() => navigation.navigate('MARCH2')} />
+            onPress={() => {
+              cancel();
+              handleNext();
+            }} />
         </View>
       </View>
     </View>

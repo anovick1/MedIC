@@ -9,7 +9,6 @@ type Props = {
 };
 
 export function VoiceFAB({ active, onPress }: Props) {
-  // TODO: Phase 2 — connect to Qwen3-ASR
   return (
     <TouchableOpacity
       style={[
@@ -17,7 +16,6 @@ export function VoiceFAB({ active, onPress }: Props) {
         active ? styles.active : styles.inactive,
       ]}
       onPress={onPress}
-      disabled={true}
       activeOpacity={0.75}
     >
       <Text style={styles.icon}>🎤</Text>

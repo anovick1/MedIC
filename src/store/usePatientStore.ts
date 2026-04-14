@@ -1,5 +1,16 @@
 import { create } from 'zustand';
-import { MarchData, VitalsData, NeuroData, QwenRiskResult, PayloadItem, AssessmentMode } from '../types';
+import {
+  MarchData,
+  VitalsData,
+  NeuroData,
+  QwenRiskResult,
+  PayloadItem,
+  AssessmentMode,
+  InjuryLocation,
+  ShootdownRisk,
+  VoiceSessionState,
+  AssessmentStepId,
+} from '../types';
 import { saveDraft as storageSaveDraft, saveRequest as storageSaveRequest, DraftRecord, RequestRecord } from '../storage/storage';
 import { encodeSquirt } from '../engine/payloadEncoder';
 
@@ -10,12 +21,25 @@ const defaultMarch: MarchData = {
 
 const defaultVitals: VitalsData = {
   bpSystolic: null, bpDiastolic: null, heartRate: null,
-  oxygenSaturation: null, temperature: null,
+  oxygenSaturation: null, temperatureC: null,
 };
 
 const defaultNeuro: NeuroData = {
-  gcs: null, consciousness: null,
+  gcsEye: null, gcsVerbal: null, gcsMotor: null, consciousness: null,
+  seizure: null, vomiting: null, headExternalHemorrhage: null, suspectedICP: null,
   injuryLocation: new Set(), notes: '',
+};
+
+const defaultVoice: VoiceSessionState = {
+  enabled: false,
+  available: false,
+  listening: false,
+  currentStepId: null,
+  currentFieldKey: null,
+  lastPrompt: '',
+  lastTranscript: '',
+  awaitingConfirmation: false,
+  error: null,
 };
 
 const defaultRisk: QwenRiskResult = {
@@ -30,9 +54,10 @@ interface PatientStore {
   march: MarchData;
   vitals: VitalsData;
   neuro: NeuroData;
-  shootdownRisk: 0 | 10 | 25 | 50 | 75 | 90 | null;
+  shootdownRisk: ShootdownRisk | null;
   risk: QwenRiskResult;
   payloadItems: PayloadItem[];
+  voice: VoiceSessionState;
   isDraft: boolean;
   lastSaved: number | null;
   currentDraftId: string | null;
@@ -43,14 +68,18 @@ interface PatientStore {
   setAssessmentMode: (mode: AssessmentMode) => void;
   setMarch: (field: keyof MarchData, value: any) => void;
   setVitals: (field: keyof VitalsData, value: any) => void;
-  setNeuro: (field: 'gcs' | 'consciousness' | 'notes', value: any) => void;
-  toggleInjuryLocation: (loc: 'FRONT' | 'BACK' | 'LEFT' | 'RIGHT' | 'TOP') => void;
-  setShootdownRisk: (risk: 0 | 10 | 25 | 50 | 75 | 90 | null) => void;
+  setNeuro: (field: keyof NeuroData, value: any) => void;
+  toggleInjuryLocation: (loc: InjuryLocation) => void;
+  setShootdownRisk: (risk: ShootdownRisk | null) => void;
   setRisk: (result: QwenRiskResult) => void;
   setPayloadItems: (items: PayloadItem[]) => void;
   removePayloadItem: (id: string) => void;
   setCurrentDraftId: (id: string | null) => void;
   setLastPage: (page: number) => void;
+  patchVoice: (patch: Partial<VoiceSessionState>) => void;
+  setVoiceEnabled: (enabled: boolean) => void;
+  setVoiceStep: (stepId: AssessmentStepId | null, fieldKey?: string | null) => void;
+  resetVoice: () => void;
   saveDraftToStorage: () => Promise<void>;
   loadDraftIntoStore: (draft: DraftRecord) => void;
   saveRequestToStorage: () => Promise<void>;
@@ -78,6 +107,7 @@ export const usePatientStore = create<PatientStore>((set, get) => ({
   shootdownRisk: null,
   risk: defaultRisk,
   payloadItems: [],
+  voice: defaultVoice,
   isDraft: false,
   lastSaved: null,
   currentDraftId: null,
@@ -104,6 +134,12 @@ export const usePatientStore = create<PatientStore>((set, get) => ({
   })),
   setCurrentDraftId: (id) => set({ currentDraftId: id }),
   setLastPage: (page) => set({ lastPage: page }),
+  patchVoice: (patch) => set((s) => ({ voice: { ...s.voice, ...patch } })),
+  setVoiceEnabled: (enabled) => set((s) => ({ voice: { ...s.voice, enabled } })),
+  setVoiceStep: (stepId, fieldKey = null) => set((s) => ({
+    voice: { ...s.voice, currentStepId: stepId, currentFieldKey: fieldKey },
+  })),
+  resetVoice: () => set({ voice: defaultVoice }),
 
   saveDraftToStorage: async () => {
     const s = get();
@@ -139,8 +175,14 @@ export const usePatientStore = create<PatientStore>((set, get) => ({
         march: data.march ?? defaultMarch,
         vitals: data.vitals ?? defaultVitals,
         neuro: {
-          gcs: data.neuro?.gcs ?? null,
+          gcsEye: data.neuro?.gcsEye ?? null,
+          gcsVerbal: data.neuro?.gcsVerbal ?? null,
+          gcsMotor: data.neuro?.gcsMotor ?? null,
           consciousness: data.neuro?.consciousness ?? null,
+          seizure: data.neuro?.seizure ?? null,
+          vomiting: data.neuro?.vomiting ?? null,
+          headExternalHemorrhage: data.neuro?.headExternalHemorrhage ?? null,
+          suspectedICP: data.neuro?.suspectedICP ?? null,
           injuryLocation: new Set(data.neuro?.injuryLocation ?? []),
           notes: data.neuro?.notes ?? '',
         },
@@ -149,6 +191,7 @@ export const usePatientStore = create<PatientStore>((set, get) => ({
         lastPage: draft.lastPage,
         isDraft: true,
         lastSaved: draft.lastSaved,
+        voice: defaultVoice,
       });
     } catch (e) {
       console.warn('loadDraftIntoStore: parse failed', e);
@@ -186,7 +229,7 @@ export const usePatientStore = create<PatientStore>((set, get) => ({
   reset: () => set({
     patientId: '', missionId: '', assessmentMode: 'FORM',
     march: defaultMarch, vitals: defaultVitals, neuro: defaultNeuro,
-    shootdownRisk: null, risk: defaultRisk, payloadItems: [],
+    shootdownRisk: null, risk: defaultRisk, payloadItems: [], voice: defaultVoice,
     isDraft: false, lastSaved: null, currentDraftId: null, lastPage: 1,
   }),
 }));

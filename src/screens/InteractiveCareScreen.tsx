@@ -1,7 +1,8 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { StackNavigationProp, RouteProp } from '@react-navigation/stack';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RouteProp } from '@react-navigation/native';
 import { usePatientStore } from '../store/usePatientStore';
 import { askBuddy } from '../ai/qwenBridge';
 import { isModelLoaded, isModelLoading } from '../ai/modelManager';

@@ -11,6 +11,8 @@ export function encodeSquirt(params: {
   payloadItems: PayloadItem[];
 }): string {
   const riskCode = { LOW: 'L', MODERATE: 'M', HIGH: 'H', CRITICAL: 'C' }[params.risk.level];
+  const gcsTotal = [params.neuro.gcsEye, params.neuro.gcsVerbal, params.neuro.gcsMotor]
+    .reduce<number>((sum, value) => sum + (value ?? 0), 0);
   const marchFlags = Object.entries(params.march)
     .filter(([_, v]) => v === 'UNCONTROLLED' || v === 'COMPROMISED' || v === 'UNSTABLE' || v === 'PRESENT')
     .map(([k, v]) => `${k}_${String(v).toLowerCase()}`);
@@ -20,7 +22,7 @@ export function encodeSquirt(params: {
     pid: params.patientId,
     mid: params.missionId,
     risk: riskCode,
-    gcs: params.neuro.gcs != null ? String(params.neuro.gcs) : 'UNK',
+    gcs: gcsTotal > 0 ? String(gcsTotal) : 'UNK',
     bp: params.vitals.bpSystolic != null && params.vitals.bpDiastolic != null
       ? `${params.vitals.bpSystolic}/${params.vitals.bpDiastolic}` : 'UNK',
     hr: params.vitals.heartRate != null ? String(params.vitals.heartRate) : 'UNK',

@@ -1,9 +1,4 @@
-// TODO: Phase 2 — connect Qwen3-ASR to drive assessment via voice
-// When active, Qwen asks each MARCH + TBI question verbally,
-// extracts answers, confirms, and populates the store hands-free.
-// Medic never looks at screen — audio only.
-
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -16,6 +11,7 @@ import { sharedStyles } from '../theme/styles';
 
 type RootStackParamList = {
   VoiceAssessment: undefined;
+  PatientInfo: undefined;
   Home: undefined;
 };
 
@@ -24,6 +20,15 @@ type VoiceAssessmentNavigationProp = StackNavigationProp<RootStackParamList, 'Vo
 export function VoiceAssessmentScreen() {
   const navigation = useNavigation<VoiceAssessmentNavigationProp>();
   const reset = usePatientStore((s) => s.reset);
+  const setVoiceEnabled = usePatientStore((s) => s.setVoiceEnabled);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setVoiceEnabled(true);
+      navigation.navigate('PatientInfo');
+    }, 250);
+    return () => clearTimeout(timeout);
+  }, [navigation, setVoiceEnabled]);
 
   const handleStop = () => {
     reset();
@@ -34,9 +39,9 @@ export function VoiceAssessmentScreen() {
     <View style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.micIcon}>🎤</Text>
-        <Text style={styles.title}>AI is guiding you</Text>
+        <Text style={styles.title}>Guided assessment starting</Text>
         <Text style={styles.subtitle}>
-          Speak naturally. Say &apos;stop&apos; to exit.
+          Loading the shared speech-compatible form flow.
         </Text>
       </View>
       <View style={styles.buttonContainer}>

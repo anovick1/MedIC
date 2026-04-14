@@ -18,6 +18,7 @@ type NavProp = StackNavigationProp<RootStackParamList, 'AssessmentMode'>;
 export function AssessmentModeScreen() {
   const navigation = useNavigation<NavProp>();
   const setAssessmentMode = usePatientStore((s) => s.setAssessmentMode);
+  const setVoiceEnabled = usePatientStore((s) => s.setVoiceEnabled);
   const reset = usePatientStore((s) => s.reset);
 
   useFocusEffect(
@@ -35,14 +36,22 @@ export function AssessmentModeScreen() {
           <BigButton
             variant="go"
             label="TYPE FORM"
-            onPress={() => { setAssessmentMode('FORM'); navigation.navigate('PatientInfo'); }}
+            onPress={() => {
+              setAssessmentMode('FORM');
+              setVoiceEnabled(true);
+              navigation.navigate('PatientInfo');
+            }}
           />
         </View>
         <View style={styles.bigBtnWrap}>
           <BigButton
             variant="neutral"
             label="VOICE FORM"
-            onPress={() => { setAssessmentMode('VOICE'); navigation.navigate('VoiceAssessment'); }}
+            onPress={() => {
+              setAssessmentMode('VOICE');
+              setVoiceEnabled(true);
+              navigation.navigate('PatientInfo');
+            }}
           />
         </View>
       </View>
