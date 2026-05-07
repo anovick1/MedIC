@@ -28,11 +28,16 @@ function buildPatientContext(
     .join(", ");
   return [
     `GCS: ${neuro.gcs ?? "unknown"}`,
+    `GCS components: Eye ${neuro.gcsEye ?? "unknown"}, Verbal ${neuro.gcsVerbal ?? "unknown"}, Motor ${neuro.gcsMotor ?? "unknown"}`,
     `Consciousness: ${neuro.consciousness ?? "unknown"}`,
+    `Seizure: ${neuro.seizure}`,
+    `Vomiting: ${neuro.vomiting}`,
+    `Suspected ICP elevation: ${neuro.suspectedICP ? "yes" : "no"}`,
+    `Pupils: right ${neuro.rightPupil}, left ${neuro.leftPupil}`,
     `BP: ${vitals.bpSystolic ?? "?"}/${vitals.bpDiastolic ?? "?"} mmHg`,
     `HR: ${vitals.heartRate ?? "unknown"} bpm`,
     `SpO2: ${vitals.oxygenSaturation ?? "unknown"}%`,
-    `Temp: ${vitals.temperature ?? "unknown"} °F`,
+    `Temp: ${vitals.temperatureC ?? "unknown"} °C`,
     `Injury Location: ${Array.from(neuro.injuryLocation).join(", ") || "unknown"}`,
     `MARCH: ${marchFlags || "all clear"}`,
     `Shootdown Risk: ${shootdownRisk ?? "unknown"}%`,
@@ -197,7 +202,7 @@ export async function askBuddy(
           },
         ],
         n_predict: 512,
-        temperature: TEMPERATURE,
+        temperature: 0,
         stop: getStopWords(),
       },
       onToken

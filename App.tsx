@@ -12,7 +12,6 @@ import { MARCHScreen } from "./src/screens/MARCHScreen";
 import { MARCH2Screen } from "./src/screens/MARCH2Screen";
 import { TriageFormScreen } from "./src/screens/TriageFormScreen";
 import { ReviewDataScreen } from "./src/screens/ReviewDataScreen";
-import { ReviewSendScreen } from "./src/screens/ReviewSendScreen";
 import { ConfirmScreen } from "./src/screens/ConfirmScreen";
 import { InteractiveCareScreen } from "./src/screens/InteractiveCareScreen";
 import { DraftsScreen } from "./src/screens/DraftsScreen";
@@ -27,7 +26,6 @@ export type RootStackParamList = {
   MARCH2: undefined;
   TriageForm: { page: number };
   ReviewData: undefined;
-  ReviewSend: undefined;
   Confirm: undefined;
   InteractiveCare: undefined;
   Drafts: undefined;
@@ -73,7 +71,6 @@ function App(): React.JSX.Element {
           <Stack.Screen name="MARCH2" component={MARCH2Screen} />
           <Stack.Screen name="TriageForm" component={TriageFormScreen} />
           <Stack.Screen name="ReviewData" component={ReviewDataScreen} />
-          <Stack.Screen name="ReviewSend" component={ReviewSendScreen} />
           <Stack.Screen name="Confirm" component={ConfirmScreen} />
           <Stack.Screen
             name="InteractiveCare"

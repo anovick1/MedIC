@@ -85,6 +85,6 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   smallLabel: {
-    fontSize: 16,
+    fontSize: 18,
   },
 });

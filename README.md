@@ -120,39 +120,26 @@ cd android && ./gradlew clean && cd ..
 npm run android
 ```
 
-## Test Cases
+## Demo Case
 
-Use these to validate risk scoring end-to-end.
+Use this case for a clean screen-recording walkthrough.
 
-### Case 1 — CRITICAL
+### Head Injury With Worsening Neuro Signs
 
-- Patient: `ALPHA-1` / Mission: `M-001`
-- MARCH: Hemorrhage `UNCONTROLLED`, all else stable
-- BP: `85/50` | HR: `130` | SpO2: `91` | Temp: `96.2`
-- GCS: `6` | Consciousness: `PAIN` | Location: `FRONT`, `LEFT`
-- Notes: `blast injury, seizure activity observed, left pupil blown`
-- Shootdown: `75%`
-- **Expected:** CRITICAL, hypertonic saline + blood + burr hole in payload, BP alert fires (hemorrhage + TBI conflict)
-
-### Case 2 — HIGH
-
-- Patient: `BRAVO-2` / Mission: `M-002`
-- MARCH: all stable
-- BP: `110/70` | HR: `105` | SpO2: `95` | Temp: `98.1`
-- GCS: `10` | Consciousness: `VOICE` | Location: `TOP`
-- Notes: `GSW to head, was GCS 13 twenty minutes ago, now declining`
+- Patient: `DEMO-7` / Mission: `REC-01`
+- MARCH: leave normal defaults selected (`CONTROLLED`, `PATENT`, `NORMAL`, `STABLE`, `NONE`)
+- Vitals: BP `118/76` | HR `104` | SpO2 `95` | Temp `37.0 °C`
+- GCS Eye: `3 - To voice`
+- GCS Verbal: `4 - Confused`
+- GCS Motor: `5 - Localizes pain`
+- Symptoms: Seizure `1` | Vomiting `Multiple` | Head External Hemorrhage `No` | Suspected ICP elevation `Yes`
+- Pupils: Right `Normal` | Left `Sluggish`
+- Injury Location: `FRONT`, `LEFT`
+- Notes: `Blast exposure, worsening headache, confused but following some commands`
 - Shootdown: `25%`
-- **Expected:** HIGH, evacuation urgency in recommendations, ketamine in payload
-
-### Case 3 — LOW/MODERATE
-
-- Patient: `CHARLIE-3` / Mission: `M-003`
-- MARCH: all stable
-- BP: `128/82` | HR: `88` | SpO2: `99` | Temp: `98.6`
-- GCS: `14` | Consciousness: `ALERT` | Location: `BACK`
-- Notes: `blunt trauma from fall, mild headache, pupils equal and reactive`
-- Shootdown: `10%`
-- **Expected:** LOW or MODERATE, minimal payload, no BP alert, monitoring recommendations only
+- **Expected:** `HIGH` risk with an evacuation-focused recommendation, neuro monitoring language, and a squirt payload containing GCS components, symptom categories, pupil reactivity, and shootdown risk.
+- **Optional demo beat:** After sending, open Recent Requests, tap `EDIT + RESEND`, change Left pupil to `Unreactive`, and send a new squirt without re-entering the full form.
+- **AI Assistant demo question:** `What are the biggest concerns for this patient and what should I monitor next?`
 
 ## Phase 2 TODO
 

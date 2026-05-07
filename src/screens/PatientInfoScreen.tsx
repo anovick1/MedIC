@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { usePatientStore } from '../store/usePatientStore';
@@ -18,7 +18,10 @@ export function PatientInfoScreen() {
   const { patientId, missionId, setPatientId, setMissionId } = usePatientStore();
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.75}>
         <Text style={styles.backText}>{'< Back'}</Text>
       </TouchableOpacity>
@@ -34,6 +37,7 @@ export function PatientInfoScreen() {
             onChangeText={setPatientId}
             placeholder="Patient ID"
             placeholderTextColor={colors.textDim}
+            returnKeyType="next"
           />
         </View>
 
@@ -45,6 +49,7 @@ export function PatientInfoScreen() {
             onChangeText={setMissionId}
             placeholder="Mission ID"
             placeholderTextColor={colors.textDim}
+            returnKeyType="done"
           />
         </View>
       </View>
@@ -58,7 +63,7 @@ export function PatientInfoScreen() {
           onPress={() => navigation.navigate('MARCH')}
         />
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

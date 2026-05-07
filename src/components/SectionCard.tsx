@@ -43,6 +43,6 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
   },
   content: {
-    gap: spacing.md,
+    gap: spacing.lg,
   },
 });

@@ -3,14 +3,14 @@ import { colors } from './colors';
 
 export const typography = StyleSheet.create({
   screenTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700',
     letterSpacing: 0.8,
     color: colors.text,
     textTransform: 'uppercase',
   },
   sectionLabel: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '600',
     letterSpacing: 1.5,
     color: colors.textDim,
@@ -23,18 +23,18 @@ export const typography = StyleSheet.create({
     textTransform: 'uppercase',
   },
   buttonSub: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '400',
     marginTop: 4,
   },
   segmentLabel: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     letterSpacing: 0.4,
     textAlign: 'center',
   },
   segmentSub: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '400',
     textAlign: 'center',
     marginTop: 2,
@@ -53,24 +53,24 @@ export const typography = StyleSheet.create({
     lineHeight: 22,
   },
   dataKey: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '600',
     letterSpacing: 0.8,
     color: colors.textDim,
     textTransform: 'uppercase',
   },
   dataVal: {
-    fontSize: 16,
+    fontSize: 18,
     color: colors.text,
   },
   mono: {
     fontFamily: 'monospace',
-    fontSize: 12,
+    fontSize: 13,
     color: colors.textMono,
     lineHeight: 20,
   },
   label: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.8,
     color: colors.textDim,

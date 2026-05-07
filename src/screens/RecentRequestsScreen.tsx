@@ -5,6 +5,7 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { loadAllRequests, deleteRequest, RequestRecord } from '../storage/storage';
+import { usePatientStore } from '../store/usePatientStore';
 import { DataRow } from '../components/DataRow';
 import { AlertBanner } from '../components/AlertBanner';
 import { colors } from '../theme/colors';
@@ -16,11 +17,13 @@ type RootStackParamList = {
   Home: undefined;
   RecentPatients: undefined;
   InteractiveCare: { requestId?: string };
+  TriageForm: { page: number };
 };
 type NavProp = StackNavigationProp<RootStackParamList, 'RecentPatients'>;
 
 export function RecentRequestsScreen() {
   const navigation = useNavigation<NavProp>();
+  const { loadRequestIntoStore } = usePatientStore();
   const [requests, setRequests] = useState<RequestRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -35,6 +38,11 @@ export function RecentRequestsScreen() {
   const handleDelete = async (id: string) => {
     await deleteRequest(id);
     setRequests((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  const handleEdit = (request: RequestRecord) => {
+    loadRequestIntoStore(request);
+    navigation.navigate('TriageForm', { page: 1 });
   };
 
   return (
@@ -65,6 +73,7 @@ export function RecentRequestsScreen() {
               onToggle={() => setExpanded(expanded === req.id ? null : req.id)}
               onDelete={() => handleDelete(req.id)}
               onChat={() => navigation.navigate('InteractiveCare', { requestId: req.id })}
+              onEdit={() => handleEdit(req)}
             />
           ))}
         </ScrollView>
@@ -73,12 +82,13 @@ export function RecentRequestsScreen() {
   );
 }
 
-function RequestCard({ request, isExpanded, onToggle, onDelete, onChat }: {
+function RequestCard({ request, isExpanded, onToggle, onDelete, onChat, onEdit }: {
   request: RequestRecord;
   isExpanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
   onChat: () => void;
+  onEdit: () => void;
 }) {
   let vitals: any = {};
   try { vitals = JSON.parse(request.vitalsSnapshot); } catch {}
@@ -94,6 +104,14 @@ function RequestCard({ request, isExpanded, onToggle, onDelete, onChat }: {
       <View style={styles.cardSubRow}>
         <Text style={styles.cardMeta}>Sent {timeAgo(request.sentAt)}</Text>
         <View style={styles.cardActions}>
+          <TouchableOpacity
+            style={[styles.editBtn, !request.snapshot && styles.disabledBtn]}
+            onPress={onEdit}
+            disabled={!request.snapshot}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.editBtnText}>EDIT + RESEND</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.chatBtn} onPress={onChat} activeOpacity={0.75}>
             <Text style={styles.chatBtnText}>CONSULT AI</Text>
           </TouchableOpacity>
@@ -147,11 +165,14 @@ const styles = StyleSheet.create({
   cardChevron: { fontSize: 14, color: colors.textDim },
   cardSubRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },
   cardMeta: { ...typography.label, color: colors.textDim, marginBottom: 0 },
-  cardActions: { flexDirection: 'row', gap: spacing.sm },
+  cardActions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: spacing.sm, flex: 1 },
+  editBtn: { backgroundColor: colors.greenDim, borderRadius: sizing.borderRadiusSm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderWidth: 1, borderColor: colors.green },
+  editBtnText: { fontSize: 13, fontWeight: '700', color: colors.green },
+  disabledBtn: { opacity: 0.4 },
   chatBtn: { backgroundColor: colors.accentDim, borderRadius: sizing.borderRadiusSm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderWidth: 1, borderColor: colors.accent },
-  chatBtnText: { fontSize: 12, fontWeight: '600', color: colors.accent },
+  chatBtnText: { fontSize: 13, fontWeight: '700', color: colors.accent },
   deleteBtn: { backgroundColor: colors.redDim, borderRadius: sizing.borderRadiusSm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
-  deleteText: { fontSize: 12, fontWeight: '600', color: colors.red },
+  deleteText: { fontSize: 13, fontWeight: '700', color: colors.red },
   expandedContent: { marginTop: spacing.md, gap: spacing.sm },
   payloadLabel: { ...typography.label, color: colors.textDim, marginBottom: 0 },
   payloadBlock: { backgroundColor: colors.surface2, borderRadius: sizing.borderRadiusSm, padding: spacing.sm },

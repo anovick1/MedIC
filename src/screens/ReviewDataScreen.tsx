@@ -9,8 +9,9 @@ import { DataRow } from '../components/DataRow';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
+import { formatGcsReview } from './TriageFormScreen';
 
-type RootStackParamList = { TriageForm: { page: number }; ReviewData: undefined; ReviewSend: undefined };
+type RootStackParamList = { TriageForm: { page: number }; ReviewData: undefined; Confirm: undefined };
 type NavProp = StackNavigationProp<RootStackParamList, 'ReviewData'>;
 
 const CONCERNING = ['UNCONTROLLED', 'COMPROMISED', 'UNSTABLE', 'PRESENT'];
@@ -23,7 +24,6 @@ export function ReviewDataScreen() {
   const navigation = useNavigation<NavProp>();
   const { vitals, neuro, march } = usePatientStore();
 
-  const gcsTotal = (neuro.gcsEye ?? 0) + (neuro.gcsVerbal ?? 0) + (neuro.gcsMotor ?? 0);
   const bp = vitals.bpSystolic != null && vitals.bpDiastolic != null
     ? `${vitals.bpSystolic}/${vitals.bpDiastolic} mmHg` : '—';
   const hr = vitals.heartRate != null ? `${vitals.heartRate} bpm` : '—';
@@ -33,7 +33,19 @@ export function ReviewDataScreen() {
     .filter(([_, v]) => CONCERNING.includes(v as string))
     .map(([k, v]) => `${MARCH_LABELS[k] ?? k}: ${v}`)
     .join(', ') || 'None';
-  const boolVal = (v: boolean | null) => v === null ? '—' : v ? 'YES' : 'NO';
+  const boolVal = (v: boolean) => v ? 'YES' : 'NO';
+  const seizureVal = {
+    NONE: 'None',
+    ONE: '1',
+    MORE_THAN_ONE: 'More than 1',
+    STATUS_EPILEPTICUS: 'Status epilepticus',
+  }[neuro.seizure];
+  const vomitingVal = {
+    NONE: '0',
+    ONE: '1',
+    MULTIPLE: 'Multiple',
+    CONTINUOUS: 'Continuous',
+  }[neuro.vomiting];
 
   return (
     <View style={styles.container}>
@@ -45,7 +57,7 @@ export function ReviewDataScreen() {
         <Text style={styles.title}>REVIEW DATA</Text>
 
         <SectionCard title="VITALS">
-          <DataRow label="GCS" value={`${gcsTotal} (E${neuro.gcsEye ?? '?'} V${neuro.gcsVerbal ?? '?'} M${neuro.gcsMotor ?? '?'})`} />
+          <DataRow label="GCS" value={formatGcsReview(neuro)} />
           <DataRow label="BP" value={bp} />
           <DataRow label="HR" value={hr} />
           <DataRow label="SpO2" value={spo2} />
@@ -53,10 +65,15 @@ export function ReviewDataScreen() {
         </SectionCard>
 
         <SectionCard title="SYMPTOMS">
-          <DataRow label="Seizure" value={boolVal(neuro.seizure)} />
-          <DataRow label="Vomiting" value={boolVal(neuro.vomiting)} />
+          <DataRow label="Seizure" value={seizureVal} />
+          <DataRow label="Vomiting" value={vomitingVal} />
           <DataRow label="Head Ext. Hemorrhage" value={boolVal(neuro.headExternalHemorrhage)} />
-          <DataRow label="Suspected ICP" value={boolVal(neuro.suspectedICP)} isLast />
+          <DataRow label="Suspected ICP elevation" value={boolVal(neuro.suspectedICP)} isLast />
+        </SectionCard>
+
+        <SectionCard title="PUPILS">
+          <DataRow label="Right pupil" value={neuro.rightPupil} />
+          <DataRow label="Left pupil" value={neuro.leftPupil} isLast />
         </SectionCard>
 
         <SectionCard title="INJURY + MARCH">
@@ -70,7 +87,7 @@ export function ReviewDataScreen() {
           <BigButton variant="neutral" label="EDIT FORM" size="small" onPress={() => navigation.navigate('TriageForm', { page: 1 })} />
         </View>
         <View style={styles.btnWrap}>
-          <BigButton variant="go" label="CONFIRM" size="small" onPress={() => navigation.navigate('ReviewSend')} />
+          <BigButton variant="go" label="CONFIRM SEND" size="small" onPress={() => navigation.navigate('Confirm')} />
         </View>
       </View>
     </View>

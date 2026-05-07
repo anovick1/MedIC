@@ -26,6 +26,7 @@ export type RequestRecord = {
   marchFlags: string[];
   shootdownRisk: number | null;
   vitalsSnapshot: string;
+  snapshot?: string;
 };
 
 async function getIndex(key: string): Promise<string[]> {

@@ -1,10 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { StackNavigationProp, RouteProp } from '@react-navigation/stack';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { usePatientStore } from '../store/usePatientStore';
 import { askBuddy } from '../ai/qwenBridge';
-import { isModelLoaded, isModelLoading } from '../ai/modelManager';
+import { useModelPreload } from '../ai/modelManager';
 import { loadAllRequests, loadRequest, RequestRecord } from '../storage/storage';
 import { BigButton } from '../components/BigButton';
 import { colors } from '../theme/colors';
@@ -17,17 +17,28 @@ type RoutePropType = RouteProp<RootStackParamList, 'InteractiveCare'>;
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
+function introMessage(patientId: string): ChatMessage {
+  return { role: 'assistant', content: `Loaded ${patientId}. Ask any clinical question.` };
+}
+
 function buildRequestContext(r: RequestRecord): string {
   let v: any = {};
+  let snapshot: any = null;
   try { v = JSON.parse(r.vitalsSnapshot); } catch {}
+  try { snapshot = r.snapshot ? JSON.parse(r.snapshot) : null; } catch {}
+  const neuro = snapshot?.neuro;
   return [
     `Patient: ${r.patientId}`, `Mission: ${r.missionId}`,
     `BP: ${v.bpSystolic ?? '?'}/${v.bpDiastolic ?? '?'}`,
     `HR: ${v.heartRate ?? '?'}`, `SpO2: ${v.oxygenSaturation ?? '?'}%`,
     `Temp: ${v.temperatureC ?? '?'}°C`,
+    neuro ? `GCS: ${neuro.gcs ?? 'untestable'} (E${neuro.gcsEye ?? '?'} V${neuro.gcsVerbal ?? '?'} M${neuro.gcsMotor ?? '?'})` : '',
+    neuro ? `Symptoms: seizure ${neuro.seizure}, vomiting ${neuro.vomiting}, suspected ICP elevation ${neuro.suspectedICP ? 'yes' : 'no'}` : '',
+    neuro ? `Pupils: right ${neuro.rightPupil}, left ${neuro.leftPupil}` : '',
+    neuro?.notes ? `Notes: ${neuro.notes}` : '',
     `MARCH: ${r.marchFlags.join(', ') || 'clear'}`,
     `Shootdown: ${r.shootdownRisk ?? '?'}%`,
-  ].join(', ');
+  ].filter(Boolean).join(', ');
 }
 
 export function InteractiveCareScreen() {
@@ -46,33 +57,39 @@ export function InteractiveCareScreen() {
   const [inThinkBlock, setInThinkBlock] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const { loaded: modelReady, loading: modelLoading, error: modelError } = useModelPreload();
 
-  const modelReady = isModelLoaded();
-  const modelLoading = isModelLoading();
+  const loadSelectedRequest = useCallback((r: RequestRecord) => {
+    setSelectedRequest(r);
+    setContext(buildRequestContext(r));
+    setMessages([introMessage(r.patientId)]);
+  }, []);
 
   useEffect(() => {
     loadAllRequests().then((reqs) => {
       setAllRequests(reqs);
       if (initialRequestId) {
         loadRequest(initialRequestId).then((r) => {
-          if (r) { setSelectedRequest(r); setContext(buildRequestContext(r)); }
+          if (r) {
+            loadSelectedRequest(r);
+          }
         });
+      } else if (reqs.length === 1) {
+        loadSelectedRequest(reqs[0]);
       }
     });
-  }, [initialRequestId]);
+  }, [initialRequestId, loadSelectedRequest]);
 
   const selectPatient = (r: RequestRecord) => {
-    setSelectedRequest(r);
-    setContext(buildRequestContext(r));
+    loadSelectedRequest(r);
     setShowPicker(false);
-    setMessages([]);
   };
 
-  const statusLine = modelLoading ? 'AI loading...' : modelReady ? 'AI ready' : 'AI not loaded';
+  const statusLine = modelLoading ? 'AI loading...' : modelReady ? 'AI ready' : `AI not loaded${modelError ? `: ${modelError}` : ''}`;
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
-    if (!text || generating) return;
+    if (!text || generating || !modelReady) return;
     setInput('');
     setMessages((prev) => [...prev, { role: 'user', content: text }]);
     setGenerating(true);
@@ -94,7 +111,7 @@ export function InteractiveCareScreen() {
     setGenerating(false);
     setMessages((prev) => [...prev, { role: 'assistant', content: response.trim() || 'No response.' }]);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
-  }, [input, generating, context]);
+  }, [input, generating, context, modelReady]);
 
   return (
     <View style={styles.container}>
@@ -103,9 +120,8 @@ export function InteractiveCareScreen() {
         <Text style={styles.statusText}>{statusLine}</Text>
 
         <TouchableOpacity style={styles.patientBar} onPress={() => setShowPicker(!showPicker)} activeOpacity={0.75}>
-          <Text style={styles.patientBarLabel}>PATIENT:</Text>
           <Text style={styles.patientBarValue}>
-            {selectedRequest ? `${selectedRequest.patientId} / ${selectedRequest.missionId}` : 'Tap to select'}
+            {selectedRequest ? selectedRequest.patientId : 'Tap to select'}
           </Text>
           <Text style={styles.patientBarChevron}>{showPicker ? '▲' : '▼'}</Text>
         </TouchableOpacity>
@@ -121,7 +137,7 @@ export function InteractiveCareScreen() {
                 style={[styles.pickerItem, selectedRequest?.id === r.id && styles.pickerItemActive]}
                 onPress={() => selectPatient(r)} activeOpacity={0.75}
               >
-                <Text style={styles.pickerText}>{r.patientId} — {r.missionId}</Text>
+                <Text style={styles.pickerText}>{r.patientId}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -136,11 +152,7 @@ export function InteractiveCareScreen() {
       >
         {messages.length === 0 && !generating && (
           <View style={styles.bubble}>
-            <Text style={styles.bubbleText}>
-              {selectedRequest
-                ? `Patient ${selectedRequest.patientId} loaded. Ask any clinical question.`
-                : 'Select a patient above, then ask a clinical question.'}
-            </Text>
+            <Text style={styles.bubbleText}>Select a patient above, then ask a clinical question.</Text>
           </View>
         )}
         {messages.map((msg, i) => (
@@ -163,11 +175,11 @@ export function InteractiveCareScreen() {
         <View style={styles.inputRow}>
           <TextInput style={styles.input} value={input} onChangeText={setInput}
             placeholder="Ask a question..." placeholderTextColor={colors.textDim}
-            editable={!generating && !!selectedRequest}
+            editable={!generating && !!selectedRequest && modelReady}
             onSubmitEditing={handleSend} returnKeyType="send" blurOnSubmit={false} />
           <View style={styles.sendWrap}>
             <BigButton variant="go" label="SEND" size="small"
-              disabled={generating || !input.trim() || !selectedRequest} onPress={handleSend} />
+              disabled={generating || !input.trim() || !selectedRequest || !modelReady} onPress={handleSend} />
           </View>
         </View>
         <BigButton variant="neutral" label="RETURN HOME" size="small"
@@ -181,15 +193,14 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   header: { paddingHorizontal: spacing.xl, paddingTop: spacing.xxl, paddingBottom: spacing.sm, gap: spacing.xs },
   title: { ...typography.screenTitle, fontSize: 24, textAlign: 'center' },
-  statusText: { fontSize: 12, color: colors.textDim, textAlign: 'center', fontFamily: 'monospace' },
+  statusText: { fontSize: 13, color: colors.textDim, textAlign: 'center', fontFamily: 'monospace' },
   patientBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: sizing.borderRadius, padding: spacing.md, marginTop: spacing.sm, borderWidth: 1, borderColor: colors.border },
-  patientBarLabel: { fontSize: 12, fontWeight: '700', color: colors.textDim, letterSpacing: 1, marginRight: spacing.sm },
-  patientBarValue: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.accent },
+  patientBarValue: { flex: 1, fontSize: 20, fontWeight: '700', color: colors.accent, textAlign: 'center' },
   patientBarChevron: { fontSize: 14, color: colors.textDim },
   picker: { maxHeight: 200, backgroundColor: colors.surface, borderRadius: sizing.borderRadius, borderWidth: 1, borderColor: colors.border, marginTop: spacing.xs },
   pickerItem: { paddingHorizontal: spacing.md, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
   pickerItemActive: { backgroundColor: colors.accentDim },
-  pickerText: { fontSize: 16, color: colors.text },
+  pickerText: { fontSize: 18, color: colors.text, fontWeight: '700' },
   pickerEmpty: { padding: spacing.md, fontSize: 14, color: colors.textDim, textAlign: 'center' },
   chatArea: { flex: 1 },
   chatContent: { paddingHorizontal: spacing.xl, paddingVertical: spacing.md, gap: spacing.md },

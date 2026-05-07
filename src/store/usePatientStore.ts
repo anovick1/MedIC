@@ -4,18 +4,29 @@ import { saveDraft as storageSaveDraft, saveRequest as storageSaveRequest, Draft
 import { encodeSquirt } from '../engine/payloadEncoder';
 
 const defaultMarch: MarchData = {
-  hemorrhage: null, airway: null, respiration: null,
-  circulation: null, hypothermia: null,
+  hemorrhage: 'CONTROLLED', airway: 'PATENT', respiration: 'NORMAL',
+  circulation: 'STABLE', hypothermia: 'NONE',
 };
 
 const defaultVitals: VitalsData = {
   bpSystolic: null, bpDiastolic: null, heartRate: null,
-  oxygenSaturation: null, temperature: null,
+  oxygenSaturation: null, temperatureC: null,
 };
 
 const defaultNeuro: NeuroData = {
-  gcs: null, consciousness: null,
-  injuryLocation: new Set(), notes: '',
+  gcs: 15,
+  gcsEye: 4,
+  gcsVerbal: 5,
+  gcsMotor: 6,
+  consciousness: 'ALERT',
+  seizure: 'NONE',
+  vomiting: 'NONE',
+  headExternalHemorrhage: false,
+  suspectedICP: false,
+  rightPupil: 'NORMAL',
+  leftPupil: 'NORMAL',
+  injuryLocation: new Set(),
+  notes: '',
 };
 
 const defaultRisk: QwenRiskResult = {
@@ -43,7 +54,7 @@ interface PatientStore {
   setAssessmentMode: (mode: AssessmentMode) => void;
   setMarch: (field: keyof MarchData, value: any) => void;
   setVitals: (field: keyof VitalsData, value: any) => void;
-  setNeuro: (field: 'gcs' | 'consciousness' | 'notes', value: any) => void;
+  setNeuro: (field: keyof NeuroData, value: any) => void;
   toggleInjuryLocation: (loc: 'FRONT' | 'BACK' | 'LEFT' | 'RIGHT' | 'TOP') => void;
   setShootdownRisk: (risk: 0 | 10 | 25 | 50 | 75 | 90 | null) => void;
   setRisk: (result: QwenRiskResult) => void;
@@ -53,6 +64,7 @@ interface PatientStore {
   setLastPage: (page: number) => void;
   saveDraftToStorage: () => Promise<void>;
   loadDraftIntoStore: (draft: DraftRecord) => void;
+  loadRequestIntoStore: (request: RequestRecord) => void;
   saveRequestToStorage: () => Promise<void>;
   reset: () => void;
 }
@@ -66,6 +78,43 @@ function buildMarchFlags(march: MarchData): string[] {
     }
   }
   return flags;
+}
+
+function serializeSnapshot(s: PatientStore): string {
+  return JSON.stringify({
+    patientId: s.patientId,
+    missionId: s.missionId,
+    assessmentMode: s.assessmentMode,
+    march: s.march,
+    vitals: s.vitals,
+    neuro: { ...s.neuro, injuryLocation: Array.from(s.neuro.injuryLocation) },
+    shootdownRisk: s.shootdownRisk,
+    risk: s.risk,
+    payloadItems: s.payloadItems,
+  });
+}
+
+function hydrateSnapshot(data: any) {
+  const vitals = { ...defaultVitals, ...(data.vitals ?? {}) };
+  if (vitals.temperatureC == null && data.vitals?.temperature != null) {
+    vitals.temperatureC = data.vitals.temperature;
+  }
+
+  return {
+    patientId: data.patientId ?? '',
+    missionId: data.missionId ?? '',
+    assessmentMode: data.assessmentMode ?? 'FORM',
+    march: { ...defaultMarch, ...(data.march ?? {}) },
+    vitals,
+    neuro: {
+      ...defaultNeuro,
+      ...(data.neuro ?? {}),
+      injuryLocation: new Set(data.neuro?.injuryLocation ?? []),
+    },
+    shootdownRisk: data.shootdownRisk ?? null,
+    risk: data.risk ?? defaultRisk,
+    payloadItems: data.payloadItems ?? [],
+  };
 }
 
 export const usePatientStore = create<PatientStore>((set, get) => ({
@@ -108,15 +157,7 @@ export const usePatientStore = create<PatientStore>((set, get) => ({
   saveDraftToStorage: async () => {
     const s = get();
     const id = s.currentDraftId ?? `draft_${Date.now()}`;
-    const snapshot = JSON.stringify({
-      patientId: s.patientId,
-      missionId: s.missionId,
-      assessmentMode: s.assessmentMode,
-      march: s.march,
-      vitals: s.vitals,
-      neuro: { ...s.neuro, injuryLocation: Array.from(s.neuro.injuryLocation) },
-      shootdownRisk: s.shootdownRisk,
-    });
+    const snapshot = serializeSnapshot(s);
     const draft: DraftRecord = {
       id,
       patientId: s.patientId,
@@ -133,18 +174,7 @@ export const usePatientStore = create<PatientStore>((set, get) => ({
     try {
       const data = JSON.parse(draft.snapshot);
       set({
-        patientId: data.patientId ?? '',
-        missionId: data.missionId ?? '',
-        assessmentMode: data.assessmentMode ?? 'FORM',
-        march: data.march ?? defaultMarch,
-        vitals: data.vitals ?? defaultVitals,
-        neuro: {
-          gcs: data.neuro?.gcs ?? null,
-          consciousness: data.neuro?.consciousness ?? null,
-          injuryLocation: new Set(data.neuro?.injuryLocation ?? []),
-          notes: data.neuro?.notes ?? '',
-        },
-        shootdownRisk: data.shootdownRisk ?? null,
+        ...hydrateSnapshot(data),
         currentDraftId: draft.id,
         lastPage: draft.lastPage,
         isDraft: true,
@@ -152,6 +182,22 @@ export const usePatientStore = create<PatientStore>((set, get) => ({
       });
     } catch (e) {
       console.warn('loadDraftIntoStore: parse failed', e);
+    }
+  },
+
+  loadRequestIntoStore: (request) => {
+    if (!request.snapshot) return;
+    try {
+      const data = JSON.parse(request.snapshot);
+      set({
+        ...hydrateSnapshot(data),
+        currentDraftId: null,
+        lastPage: 1,
+        isDraft: false,
+        lastSaved: null,
+      });
+    } catch (e) {
+      console.warn('loadRequestIntoStore: parse failed', e);
     }
   },
 
@@ -179,6 +225,7 @@ export const usePatientStore = create<PatientStore>((set, get) => ({
       marchFlags: buildMarchFlags(s.march),
       shootdownRisk: s.shootdownRisk,
       vitalsSnapshot: JSON.stringify(s.vitals),
+      snapshot: serializeSnapshot(s),
     };
     await storageSaveRequest(request);
   },
