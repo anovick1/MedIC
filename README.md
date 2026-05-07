@@ -137,8 +137,6 @@ Use this case for a clean screen-recording walkthrough.
 - Injury Location: `FRONT`, `LEFT`
 - Notes: `Blast exposure, worsening headache, confused but following some commands`
 - Shootdown: `25%`
-- **Expected:** `HIGH` risk with an evacuation-focused recommendation, neuro monitoring language, and a squirt payload containing GCS components, symptom categories, pupil reactivity, and shootdown risk.
-- **Optional demo beat:** After sending, open Recent Requests, tap `EDIT + RESEND`, change Left pupil to `Unreactive`, and send a new squirt without re-entering the full form.
 - **AI Assistant demo question:** `What are the biggest concerns for this patient and what should I monitor next?`
 
 ## Phase 2 TODO
